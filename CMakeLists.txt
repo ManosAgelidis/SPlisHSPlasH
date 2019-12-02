@@ -7,7 +7,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(${PROJECT_PATH}/CMake/Common.cmake)
 
 add_definitions(-DSPH_DATA_PATH="../data")

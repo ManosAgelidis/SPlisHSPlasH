@@ -1,0 +1,60 @@
+#ifndef __GazeboSimulatorBase_h__
+#define __GazeboSimulatorBase_h__
+
+#include "SPlisHSPlasH/Common.h"
+#include "../FluidSimulator/GazeboSceneLoader.h"
+#include "SPlisHSPlasH/TimeStep.h"
+#include "SPlisHSPlasH/FluidModel.h"
+#include "ParameterObject.h"
+#include "SPlisHSPlasH/BoundaryModel_Akinci2012.h"
+#include "SPlisHSPlasH/BoundaryModel_Koschier2017.h"
+#include "SPlisHSPlasH/BoundaryModel_Bender2019.h"
+#include "SPlisHSPlasH/TriangleMesh.h"
+
+//using namespace Utilities;
+namespace SPH
+{
+	class GazeboSimulatorBase : public GenParam::ParameterObject
+	{
+	public: 
+		struct SimulationMethod
+		{
+			short simulationMethod = 0;
+			TimeStep *simulation = NULL;
+			FluidModel model;
+		};
+
+	protected:
+		Utilities::GazeboSceneLoader::Scene m_scene;
+		virtual void initParameters();
+		
+		void initFluidData();
+		void createFluidBlocks(std::map<std::string, unsigned int> &fluidIDs, std::vector<std::vector<Vector3r>> &fluidParticles, std::vector<std::vector<Vector3r>> &fluidVelocities);
+	public:
+
+		GazeboSimulatorBase();
+		virtual ~GazeboSimulatorBase();
+
+		void readParameters();
+
+		void createEmitters();
+		void init(sdf::ElementPtr fluidSdf);
+		void buildModel();
+		void cleanup();
+		void initDensityMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool isDynamic, BoundaryModel_Koschier2017 *boundaryModel);
+		void initVolumeMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool isDynamic, BoundaryModel_Bender2019 *boundaryModel);
+	    void step();
+		void reset();
+		void updateBoundaryParticles(const bool forceUpdate);
+		void updateDMVelocity();
+		void updateVMVelocity();
+		void updateBoundaryForces();
+		Utilities::GazeboSceneLoader *getSceneLoader() { return m_sceneLoader.get(); }
+		std::string real2String(const Real r);
+		static void loadObj(const std::string &filename, TriangleMesh &mesh, const Vector3r &scale);
+		Utilities::GazeboSceneLoader::Scene& getScene() { return m_scene; }
+		std::unique_ptr<Utilities::GazeboSceneLoader> m_sceneLoader;
+	};
+}
+ 
+#endif

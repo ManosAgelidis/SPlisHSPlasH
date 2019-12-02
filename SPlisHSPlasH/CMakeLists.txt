@@ -178,7 +178,7 @@ include_directories(${PROJECT_PATH}/extern/install/Discregrid/include)
 ############################################################
 include_directories(${PROJECT_PATH}/extern/install/GenericParameters/include)
 
-add_library(SPlisHSPlasH
+add_library(SPlisHSPlasH 
 	Common.h
 	
 	NeighborhoodSearch.h
