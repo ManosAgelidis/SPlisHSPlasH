@@ -10,7 +10,7 @@ else()
   find_package(OpenGL REQUIRED)
 
   include_directories( ${OPENGL_INCLUDE_DIRS} ${GLUT_INCLUDE_DIRS})
-  
+
   set(SIMULATION_LINK_LIBRARIES
 	${SIMULATION_LINK_LIBRARIES}
 	${GLUT_LIBRARIES}
@@ -24,23 +24,18 @@ include_directories( ${EIGEN3_INCLUDE_DIR} )
 ############################################################
 # NeighborhoodSearch
 ############################################################
-include_directories(${PROJECT_PATH}/extern/install/NeighborhoodSearch/include)
+include_directories(${NEIGHBORHOOD_SEARCH_INCLUDE_DIR})
 set(SIMULATION_DEPENDENCIES ${SIMULATION_DEPENDENCIES} Ext_NeighborhoodSearch)
-set(SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES}
-  ${NEIGBORHOOD_SEARCH_LINK_DEPENDENCIES}
-	optimized ${NeighborhoodAssemblyName}
-	debug ${NeighborhoodAssemblyName}_d)
-link_directories(${PROJECT_PATH}/extern/install/NeighborhoodSearch/lib)
+set(SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES} ${NEIGHBORHOOD_SEARCH_LIBRARIES})
 
 ############################################################
 # DiscreGrid
 ############################################################
 include_directories(${PROJECT_PATH}/extern/install/Discregrid/include)
 set(SIMULATION_DEPENDENCIES ${SIMULATION_DEPENDENCIES} Ext_Discregrid)
-set(SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES} 
-	optimized Discregrid 
+set(SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES}
+	optimized Discregrid
 	debug Discregrid_d)
-set(SIMULATION_DEPENDENCIES ${SIMULATION_DEPENDENCIES} Ext_Discregrid)	
 link_directories(${PROJECT_PATH}/extern/install/Discregrid/lib)
 
 ############################################################
