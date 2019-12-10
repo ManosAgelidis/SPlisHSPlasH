@@ -14,23 +14,18 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 ############################################################
 # NeighborhoodSearch
 ############################################################
-include_directories(${PROJECT_PATH}/extern/install/NeighborhoodSearch/include)
+include_directories(${NEIGHBORHOOD_SEARCH_INCLUDE_DIR})
 set(SIMULATION_DEPENDENCIES ${SIMULATION_DEPENDENCIES} Ext_NeighborhoodSearch)
-set(SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES}
-  ${NEIGBORHOOD_SEARCH_LINK_DEPENDENCIES}
-	optimized ${NeighborhoodAssemblyName}
-	debug ${NeighborhoodAssemblyName}_d)
-link_directories(${PROJECT_PATH}/extern/install/NeighborhoodSearch/lib)
+set(SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES} ${NEIGHBORHOOD_SEARCH_LIBRARIES})
 
 ############################################################
 # DiscreGrid
 ############################################################
 include_directories(${PROJECT_PATH}/extern/install/Discregrid/include)
 set(SIMULATION_DEPENDENCIES ${SIMULATION_DEPENDENCIES} Ext_Discregrid)
-set(SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES} 
-	optimized Discregrid 
+set(SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES}
+	optimized Discregrid
 	debug Discregrid_d)
-set(SIMULATION_DEPENDENCIES ${SIMULATION_DEPENDENCIES} Ext_Discregrid)	
 link_directories(${PROJECT_PATH}/extern/install/Discregrid/lib)
 
 ############################################################
@@ -85,6 +80,9 @@ message("FluidSimulator SIMULATION_LINK_LIBRARIES ${SIMULATION_LINK_LIBRARIES} "
 target_link_libraries(FluidSimulator ${SIMULATION_LINK_LIBRARIES} ${GAZEBO_LIBRARIES} ${IGNITION-MATH_LIBRARIES})
 #target_link_libraries(FluidSimulator Utilities_d)
 
+add_library(FluidVisPlugin SHARED FluidVisPlugin.cc)
+target_link_libraries(FluidVisPlugin gazebo_msgs ${OGRE_LIBRARIES} gazebo_gui)
+#set_target_properties(FluidVisPlugin PROPERTIES INSTALL_RPATH ${GAZEBO_PLUGIN_INSTALL_DIR})
 
 set_target_properties(FluidSimulator PROPERTIES FOLDER "Simulators")
 

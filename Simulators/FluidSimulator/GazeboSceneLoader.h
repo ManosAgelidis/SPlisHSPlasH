@@ -31,14 +31,14 @@ public:
 	bool getSDFParameter(const sdf::ElementPtr sdf,T &parameter, const std::string &parameterName, const T& defaultValue);
 	void readScene(sdf::ElementPtr sdf, Scene &scene);
 	void readParameterObject(const std::string &key, GenParam::ParameterObject *paramObj);
-	void getVector3rParameter(const sdf::ElementPtr sdf, Vector3r &parameter, const ::std::string &parameterName, const Vector3r &defaultValue);
+	bool getVector3rParameter(const sdf::ElementPtr sdf, Vector3r &parameter, const ::std::string &parameterName, const Vector3r &defaultValue);
 	
 	
 	//void getVector3iParameter(const sdf::ElementPtr sdf, Eigen::Matrix<unsigned int, 3, 1> &parameter, const ::std::string &parameterName, const Eigen::Matrix<unsigned int, 3, 1> &defaultValue)
 	//void getSDFParameter(Scene &scene, sdf::ElementPtr sdf, const std::string &parameterName);
 
 private:
-	sdf::ElementPtr fluidConfiguration;
+	sdf::ElementPtr sdf;
 	void processFluidModels(Scene& scene, const sdf::ElementPtr& sdf);
 	void processFluidBlocks(Scene& scene, const sdf::ElementPtr& sdf);
 	void processFluidEmmiters(Scene& scene, const sdf::ElementPtr& sdf);

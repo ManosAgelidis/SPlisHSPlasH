@@ -19,12 +19,13 @@ namespace SPH
 		Matrix3r m_R;
 		Matrix3r m_R_world;
 		TriangleMesh m_geometry;
+		bool m_isDynamic;
 
 	public:
 		StaticRigidBody() { m_zero = Vector3r::Zero(); }
 
-		virtual bool isDynamic() const { return false; }
-
+		virtual bool isDynamic() const { return m_isDynamic; }
+		
 		virtual Real const getMass() const { return 0.0; }
 		virtual Vector3r const& getPosition() const  { return m_x; }
 		virtual void setPosition(const Vector3r &x) { m_x = x; }
@@ -39,6 +40,7 @@ namespace SPH
 		virtual void addForce(const Vector3r &f) {}
 		virtual void addTorque(const Vector3r &t) {}
 
+		void setDynamic(bool dynamic){ m_isDynamic = dynamic;}
 		void setWorldSpacePosition(const Vector3r &x) { m_x_world = x; }
 		void setWorldSpaceRotation(const Matrix3r &r) { m_R_world = r; }
 		TriangleMesh& getGeometry() { return m_geometry; }

@@ -22,10 +22,12 @@ bool GazeboSceneLoader::getSDFParameter(const sdf::ElementPtr sdf, T &parameter,
 	return result;
 }
 
-void GazeboSceneLoader::getVector3rParameter(const sdf::ElementPtr sdf, Vector3r &parameter, const ::std::string &parameterName, const Vector3r &defaultValue)
+bool GazeboSceneLoader::getVector3rParameter(const sdf::ElementPtr sdf, Vector3r &parameter, const ::std::string &parameterName, const Vector3r &defaultValue)
 {
+	bool result = false;
 	if (sdf->HasElement(parameterName))
 	{
+		result = true;
 		ignition::math::Vector3d value = sdf->GetElement(parameterName)->Get<ignition::math::Vector3d>();
 		parameter = Vector3r(value.X(), value.Y(), value.Z());
 	}
@@ -33,6 +35,7 @@ void GazeboSceneLoader::getVector3rParameter(const sdf::ElementPtr sdf, Vector3r
 	{
 		parameter = defaultValue;
 	}
+	return result;
 }
 
 /* void GazeboSceneLoader::getVector3iParameter(const sdf::ElementPtr sdf, Eigen::Matrix<unsigned int, 3, 1> &parameter, const ::std::string &parameterName, const Eigen::Matrix<unsigned int, 3, 1> &defaultValue)
@@ -162,40 +165,27 @@ void GazeboSceneLoader::processFluidEmmiters(Scene &scene, const sdf::ElementPtr
 void GazeboSceneLoader::readScene(sdf::ElementPtr sdf, Scene &scene)
 {
 	LOG_INFO << "Load scene file from sdf: ";
+	if (sdf != nullptr)
+	{
+		this->sdf = sdf;
+	}
+
 	if (sdf->HasElement("fluidConfiguration"))
 	{
-		this->fluidConfiguration = sdf->GetElement("fluidConfiguration");
+		sdf::ElementPtr fluidConfiguration = sdf->GetElement("fluidConfiguration");
+		getSDFParameter<Real>(fluidConfiguration, scene.timeStepSize, "timeStepSize", 0.001);
+		getSDFParameter<Real>(fluidConfiguration, scene.particleRadius, "particleRadius", 0.025);
 	}
 	else
 	{
 		std::cout << "Fluid configuration missing from sdf, using default values" << std::endl;
 	}
 
-	getSDFParameter<Real>(this->fluidConfiguration, scene.timeStepSize, "timeStepSize", 0.001);
-	getSDFParameter<Real>(this->fluidConfiguration, scene.particleRadius, "particleRadius", 0.025);
-
 	processFluidModels(scene, sdf);
 	processFluidBlocks(scene, sdf);
 	processFluidEmmiters(scene, sdf);
-
-	//LOG_INFO << "timeStepSize" << scene.timeStepSize << std::endl;
 }
 
-/* template <>
-bool GazeboSceneLoader::readValue(const nlohmann::json &j, bool &v)
-{
-	if (j.is_null())
-		return false;
-
-	if (j.is_number_integer())
-	{
-		int val = j.get<int>();
-		v = val != 0;
-	}
-	else
-		v = j.get<bool>();
-	return true;
-} */
 
 void GazeboSceneLoader::readParameterObject(const std::string &key, ParameterObject *paramObj)
 {
@@ -203,13 +193,13 @@ void GazeboSceneLoader::readParameterObject(const std::string &key, ParameterObj
 		return;
 
 	const unsigned int numParams = paramObj->numParameters();
-	
+
 	//////////////////////////////////////////////////////////////////////////
-	// read configuration 
- 	//////////////////////////////////////////////////////////////////////////
-	if (this->fluidConfiguration->HasElement(key))
+	// read configuration
+	//////////////////////////////////////////////////////////////////////////
+	if (this->sdf->HasElement(key))
 	{
-		sdf::ElementPtr config = this->fluidConfiguration->GetElement(key);
+		sdf::ElementPtr config = this->sdf->GetElement(key);
 		std::vector<std::string> newParamList;
 
 		for (unsigned int i = 0; i < numParams; i++)
@@ -219,73 +209,78 @@ void GazeboSceneLoader::readParameterObject(const std::string &key, ParameterObj
 			if (paramBase->getType() == RealParameterType)
 			{
 				Real val;
-				if (getSDFParameter<Real>(config,val,paramBase->getName(),0.0 ))
-				/* if (readValue(config[paramBase->getName()], val)) */
-					static_cast<NumericParameter<Real>*>(paramBase)->setValue(val);
+				if (getSDFParameter<Real>(config, val, paramBase->getName(), 0.0))
+					static_cast<NumericParameter<Real> *>(paramBase)->setValue(val);
 			}
-			/* else if (paramBase->getType() == ParameterBase::UINT32)
+			else if (paramBase->getType() == ParameterBase::UINT32)
 			{
 				unsigned int val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<NumericParameter<unsigned int>*>(paramBase)->setValue(val);
+				if (getSDFParameter<unsigned int>(config, val, paramBase->getName(), 0))
+					static_cast<NumericParameter<unsigned int> *>(paramBase)->setValue(val);
+			}
+			else if (paramBase->getType() == ParameterBase::UINT32)
+			{
+				unsigned int val;
+				if (getSDFParameter<unsigned int>(config, val, paramBase->getName(), 0))
+					static_cast<NumericParameter<unsigned int> *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == ParameterBase::UINT16)
 			{
 				unsigned short val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<NumericParameter<unsigned short>*>(paramBase)->setValue(val);
+				if (getSDFParameter<unsigned short>(config, val, paramBase->getName(), 0))
+					static_cast<NumericParameter<unsigned short> *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == ParameterBase::UINT8)
 			{
 				unsigned char val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<NumericParameter<unsigned char>*>(paramBase)->setValue(val);
+				if (getSDFParameter<unsigned char>(config, val, paramBase->getName(), 0))
+						static_cast<NumericParameter<unsigned char> *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == ParameterBase::INT32)
 			{
 				int val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<NumericParameter<int>*>(paramBase)->setValue(val);
+				if (getSDFParameter<int>(config, val, paramBase->getName(), 0))
+					static_cast<NumericParameter<int> *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == ParameterBase::INT16)
 			{
 				short val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<NumericParameter<short>*>(paramBase)->setValue(val);
+				if (getSDFParameter<short>(config, val, paramBase->getName(), 0))
+					static_cast<NumericParameter<short> *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == ParameterBase::INT8)
 			{
 				char val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<NumericParameter<char>*>(paramBase)->setValue(val);
+				if (getSDFParameter<char>(config, val, paramBase->getName(), 0))
+					static_cast<NumericParameter<char> *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == ParameterBase::ENUM)
 			{
 				int val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<EnumParameter*>(paramBase)->setValue(val);
+				if (getSDFParameter<int>(config, val, paramBase->getName(), 0))
+					static_cast<EnumParameter *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == ParameterBase::BOOL)
 			{
 				bool val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<BoolParameter*>(paramBase)->setValue(val);
+				if (getSDFParameter<bool>(config, val, paramBase->getName(), 0))
+					static_cast<BoolParameter *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == RealVectorParameterType)
 			{
-				if (static_cast<VectorParameter<Real>*>(paramBase)->getDim() == 3)
+				if (static_cast<VectorParameter<Real> *>(paramBase)->getDim() == 3)
 				{
 					Vector3r val;
-					if (readVector(config[paramBase->getName()], val))
-						static_cast<VectorParameter<Real>*>(paramBase)->setValue(val.data());
+					if (getVector3rParameter(config, val, paramBase->getName(), Vector3r::Zero()))
+						static_cast<VectorParameter<Real> *>(paramBase)->setValue(val.data());
 				}
 			}
 			else if (paramBase->getType() == ParameterBase::STRING)
 			{
 				std::string val;
-				if (readValue(config[paramBase->getName()], val))
-					static_cast<StringParameter*>(paramBase)->setValue(val);
-			} */
+				if (getSDFParameter<std::string>(config, val, paramBase->getName(), ""))
+					static_cast<StringParameter *>(paramBase)->setValue(val);
+			}
 		}
 	}
 }

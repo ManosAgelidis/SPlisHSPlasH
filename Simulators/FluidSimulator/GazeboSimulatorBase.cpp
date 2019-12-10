@@ -14,11 +14,13 @@
 #include "Utilities/Logger.h"
 #include "Utilities/Timing.h"
 #include "Utilities/Counting.h"
+#include "Utilities/FileSystem.h"
 
 using namespace SPH;
 using namespace std;
 using namespace GenParam;
 using namespace Utilities;
+using namespace gazebo;
 
 //virtual void initParameters();
 
@@ -28,11 +30,11 @@ INIT_COUNTING
 
 void GazeboSimulatorBase::initParameters()
 {
-
+	ParameterObject::initParameters();
 }
 GazeboSimulatorBase::GazeboSimulatorBase()
 {
-
+	Utilities::logger.addSink(unique_ptr<Utilities::ConsoleSink>(new Utilities::ConsoleSink(Utilities::LogLevel::INFO)));
 }
 
 GazeboSimulatorBase::~GazeboSimulatorBase()
@@ -41,9 +43,9 @@ GazeboSimulatorBase::~GazeboSimulatorBase()
 
 void GazeboSimulatorBase::readParameters()
 {
-	m_sceneLoader->readParameterObject("Configuration", this);
-	m_sceneLoader->readParameterObject("Configuration", Simulation::getCurrent());
-	m_sceneLoader->readParameterObject("Configuration", Simulation::getCurrent()->getTimeStep());
+	m_sceneLoader->readParameterObject("fluidConfiguration", this);
+	m_sceneLoader->readParameterObject("fluidConfiguration", Simulation::getCurrent());
+	m_sceneLoader->readParameterObject("fluidConfiguration", Simulation::getCurrent()->getTimeStep());
 
 	Simulation *sim = Simulation::getCurrent();
 	for (unsigned int i = 0; i < sim->numberOfFluidModels(); i++)
@@ -51,19 +53,19 @@ void GazeboSimulatorBase::readParameters()
 		FluidModel *model = sim->getFluidModel(i);
 		const std::string &key = model->getId();
 		m_sceneLoader->readParameterObject(model->getId(), model);
-		m_sceneLoader->readParameterObject(key, (ParameterObject*) model->getDragBase());
-		m_sceneLoader->readParameterObject(key, (ParameterObject*) model->getSurfaceTensionBase());
-		m_sceneLoader->readParameterObject(key, (ParameterObject*) model->getViscosityBase());
-		m_sceneLoader->readParameterObject(key, (ParameterObject*) model->getVorticityBase());
-		m_sceneLoader->readParameterObject(key, (ParameterObject*) model->getElasticityBase());
+		m_sceneLoader->readParameterObject(key, (ParameterObject *)model->getDragBase());
+		m_sceneLoader->readParameterObject(key, (ParameterObject *)model->getSurfaceTensionBase());
+		m_sceneLoader->readParameterObject(key, (ParameterObject *)model->getViscosityBase());
+		m_sceneLoader->readParameterObject(key, (ParameterObject *)model->getVorticityBase());
+		m_sceneLoader->readParameterObject(key, (ParameterObject *)model->getElasticityBase());
 	}
 }
 
 void GazeboSimulatorBase::init(sdf::ElementPtr fluidSdf)
 {
+	initParameters();
 	m_sceneLoader = std::make_unique<GazeboSceneLoader>();
 	m_sceneLoader->readScene(fluidSdf, m_scene);
-	initParameters();
 }
 
 void GazeboSimulatorBase::cleanup()
@@ -130,8 +132,8 @@ void GazeboSimulatorBase::loadObj(const std::string &filename, TriangleMesh &mes
 		mesh.addFace(&posIndices[0]);
 	}
 
-	//LOG_INFO << "Number of triangles: " << nFaces;
-	//LOG_INFO << "Number of vertices: " << nPoints;
+	LOG_INFO << "Number of triangles: " << nFaces;
+	LOG_INFO << "Number of vertices: " << nPoints;
 }
 
 void GazeboSimulatorBase::initFluidData()
@@ -169,37 +171,16 @@ void GazeboSimulatorBase::initFluidData()
 
 	createFluidBlocks(fluidIDs, fluidParticles, fluidVelocities);
 
-	unsigned int startIndex = 0;
-	unsigned int endIndex = 0;
 	for (unsigned int i = 0; i < m_scene.fluidModels.size(); i++)
 	{
 		const unsigned int fluidIndex = fluidIDs[m_scene.fluidModels[i]->id];
-
-		// check if mesh file has changed
-	/* 	std::string mode = to_string(m_scene.fluidModels[i]->mode);
-		const string scaleStr = real2String(m_scene.fluidModels[i]->scale[0]) + "_" + real2String(m_scene.fluidModels[i]->scale[1]) + "_" + real2String(m_scene.fluidModels[i]->scale[2]);
-		const string resStr = real2String(m_scene.fluidModels[i]->resolutionSDF[0]) + "_" + real2String(m_scene.fluidModels[i]->resolutionSDF[1]) + "_" + real2String(m_scene.fluidModels[i]->resolutionSDF[2]);
-		const string particleFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_fluid_" + real2String(m_scene.particleRadius) + "_m" + mode + "_s" + scaleStr + "_r" + resStr + ".bgeo");
-
-	 	LOG_INFO << "Volume sampling of " << fileName;*/
-
-		/* TriangleMesh mesh;
-		loadObj(fileName, mesh, m_scene.fluidModels[i]->scale);
-
-		bool invert = m_scene.fluidModels[i]->invert;
-		int mode = m_scene.fluidModels[i]->mode;
-		std::array<unsigned int, 3> resolutionSDF = m_scene.fluidModels[i]->resolutionSDF;
-
-		Utilities::VolumeSampling::sampleMesh(mesh.numVertices(), mesh.getVertices().data(), mesh.numFaces(), mesh.getFaces().data(),
-											  m_scene.particleRadius, nullptr, resolutionSDF, invert, mode, fluidParticles[fluidIndex]);
-
 		fluidVelocities[fluidIndex].resize(fluidParticles[fluidIndex].size(), m_scene.fluidModels[i]->initialVelocity);
 
 		// transform particles
 		for (unsigned int j = 0; j < (unsigned int)fluidParticles[fluidIndex].size(); j++)
-			fluidParticles[fluidIndex][j] = m_scene.fluidModels[i]->rotation * fluidParticles[fluidIndex][j] + m_scene.fluidModels[i]->translation; */
+			fluidParticles[fluidIndex][j] = m_scene.fluidModels[i]->rotation * fluidParticles[fluidIndex][j] + m_scene.fluidModels[i]->translation;
+		Simulation::getCurrent()->setValue(Simulation::PARTICLE_RADIUS, m_scene.particleRadius);
 	}
-	Simulation::getCurrent()->setValue(Simulation::PARTICLE_RADIUS, m_scene.particleRadius);
 
 	unsigned int nParticles = 0;
 	for (auto it = fluidIDs.begin(); it != fluidIDs.end(); it++)
@@ -211,19 +192,21 @@ void GazeboSimulatorBase::initFluidData()
 		sim->addFluidModel(it->first, (unsigned int)fluidParticles[index].size(), fluidParticles[index].data(), fluidVelocities[index].data(), maxEmitterParticles);
 		nParticles += (unsigned int)fluidParticles[index].size();
 	}
+
 	LOG_INFO << "Number of fluid particles: " << nParticles;
 }
 
 void GazeboSimulatorBase::createEmitters()
 {
-	/* Simulation *sim = Simulation::getCurrent();
+	Simulation *sim = Simulation::getCurrent();
 
 	//////////////////////////////////////////////////////////////////////////
 	// emitters
 	//////////////////////////////////////////////////////////////////////////
 	for (unsigned int i = 0; i < m_scene.emitters.size(); i++)
 	{
-		GazeboSceneLoader::EmitterData *ed = m_scene.emitters[i];
+		//GazeboSceneLoader::EmitterData *ed = m_scene.emitters[i];
+		SceneLoader::EmitterData *ed = m_scene.emitters[i]; // TODO
 
 		FluidModel *model = nullptr;
 		unsigned int j;
@@ -244,7 +227,7 @@ void GazeboSimulatorBase::createEmitters()
 
 			// Generate boundary geometry around emitters
 			Emitter *emitter = model->getEmitterSystem()->getEmitters().back();
-			GazeboSceneLoader::BoundaryData *emitterBoundary = new GazeboSceneLoader::BoundaryData();
+			SceneLoader::BoundaryData *emitterBoundary = new SceneLoader::BoundaryData();
 			emitterBoundary->dynamic = false;
 			emitterBoundary->isWall = false;
 			emitterBoundary->rotation = ed->rotation;
@@ -258,28 +241,33 @@ void GazeboSimulatorBase::createEmitters()
 			emitterBoundary->mapResolution = Eigen::Matrix<unsigned int, 3, 1>(20, 20, 20);
 			emitterBoundary->mapThickness = 0.0;
 
+			/* 			if (ed->type == 0)
+				emitterBoundary->meshFile = FileSystem::normalizePath(getDataPath() + "/models/EmitterBox.obj");
+			else if (ed->type == 1)
+				emitterBoundary->meshFile = FileSystem::normalizePath(getDataPath() + "/models/EmitterCylinder.obj");
 			m_scene.boundaryModels.push_back(emitterBoundary);
 
 			// reuse particles if they are outside of a bounding box
 			bool emitterReuseParticles = false;
-			//m_sceneLoader->readValue(model->getId(), "emitterReuseParticles", emitterReuseParticles);
+			m_sceneLoader->getSDFParameter(model->getId(), "emitterReuseParticles", emitterReuseParticles);
+			// TODO whats the point of this
 
 			if (emitterReuseParticles)
 			{
 				// boxMin
 				Vector3r emitterBoxMin(-1.0, -1.0, -1.0);
-				//m_sceneLoader->readVector(model->getId(), "emitterBoxMin", emitterBoxMin);
+				m_sceneLoader->readVector(model->getId(), "emitterBoxMin", emitterBoxMin);
 
 				// boxMax
 				Vector3r emitterBoxMax(1.0, 1.0, 1.0);
-				//m_sceneLoader->readVector(model->getId(), "emitterBoxMax", emitterBoxMax);
+				m_sceneLoader->readVector(model->getId(), "emitterBoxMax", emitterBoxMax);
 
 				model->getEmitterSystem()->enableReuseParticles(emitterBoxMin, emitterBoxMax);
 			}
 			emitter->setEmitStartTime(ed->emitStartTime);
-			emitter->setEmitEndTime(ed->emitEndTime);
+			emitter->setEmitEndTime(ed->emitEndTime); */
 		}
-	} */
+	}
 }
 
 void GazeboSimulatorBase::createFluidBlocks(std::map<std::string, unsigned int> &fluidIDs, std::vector<std::vector<Vector3r>> &fluidParticles, std::vector<std::vector<Vector3r>> &fluidVelocities)
@@ -352,10 +340,6 @@ void GazeboSimulatorBase::createFluidBlocks(std::map<std::string, unsigned int> 
 	}
 }
 
-void GazeboSimulatorBase::step()
-{
-}
-
 void GazeboSimulatorBase::reset()
 {
 	/* if (Simulation::getCurrent()->getValue<int>(Simulation::CFL_METHOD) != Simulation::ENUM_CFL_NONE)
@@ -367,23 +351,48 @@ void GazeboSimulatorBase::reset()
 
 void GazeboSimulatorBase::updateBoundaryParticles(const bool forceUpdate = false)
 {
-	/* Simulation *sim = Simulation::getCurrent();
+	Simulation *sim = Simulation::getCurrent();
 	GazeboSceneLoader::Scene &scene = getScene();
+
 	const unsigned int nObjects = sim->numberOfBoundaryModels();
+
 	for (unsigned int i = 0; i < nObjects; i++)
 	{
 		BoundaryModel_Akinci2012 *bm = static_cast<BoundaryModel_Akinci2012 *>(sim->getBoundaryModel(i));
-		RigidBodyObject *rbo = bm->getRigidBodyObject();
+		StaticRigidBody *rbo = dynamic_cast<StaticRigidBody *>(bm->getRigidBodyObject());
 		if (rbo->isDynamic() || forceUpdate)
 		{
-			#pragma omp parallel default(shared)
+			//#pragma omp parallel default(shared)
 			{
-				#pragma omp for schedule(static)
+				//#pragma omp for schedule(static)
+				physics::CollisionPtr currentRigidBody = boundariesToCollisions[rbo];
+				physics::LinkPtr gazeboBodyLink = currentRigidBody->GetLink();
+
+				// Position of rigid body
+				math::Pose gazeboRigidBodyPose = gazeboBodyLink->GetWorldPose();
+				Vector3r fluidObjectPosition = Vector3r(gazeboRigidBodyPose.pos.x, gazeboRigidBodyPose.pos.y, gazeboRigidBodyPose.pos.z);
+
+				// Rotation of rigid body
+				auto rigidBodyRotation = gazeboRigidBodyPose.rot.GetAsMatrix3();
+				Matrix3r fluidObjectRotation;
+				fluidObjectRotation << rigidBodyRotation[0][0], rigidBodyRotation[0][1], rigidBodyRotation[0][2],
+					rigidBodyRotation[1][0], rigidBodyRotation[1][1], rigidBodyRotation[1][2],
+					rigidBodyRotation[2][0], rigidBodyRotation[2][1], rigidBodyRotation[2][2];
+
+				// Linear velocity of rigid body
+				math::Vector3 linearVelocityGazebo = gazeboBodyLink->GetWorldLinearVel();
+				Vector3r fluidObjectLinearVel = Vector3r(linearVelocityGazebo.x, linearVelocityGazebo.y, linearVelocityGazebo.z);
+
+				// Angular velocity of rigid body
+				math::Vector3 angularVelocityGazebo = gazeboBodyLink->GetWorldAngularVel();
+				Vector3r fluidObjectAngularVel = Vector3r(angularVelocityGazebo.x, angularVelocityGazebo.y, angularVelocityGazebo.z);
+
 				for (int j = 0; j < (int)bm->numberOfParticles(); j++)
 				{
-					bm->getPosition(j) = rbo->getRotation() * bm->getPosition0(j) + rbo->getPosition();
+
+					bm->getPosition(j) = fluidObjectRotation * bm->getPosition0(j) + fluidObjectPosition;
 					if (rbo->isDynamic())
-						bm->getVelocity(j) = rbo->getAngularVelocity().cross(bm->getPosition(j) - rbo->getPosition()) + rbo->getVelocity();
+						bm->getVelocity(j) = fluidObjectAngularVel.cross(bm->getPosition(j) - fluidObjectPosition) + fluidObjectLinearVel;
 					else
 						bm->getVelocity(j).setZero();
 				}
@@ -394,7 +403,7 @@ void GazeboSimulatorBase::updateBoundaryParticles(const bool forceUpdate = false
 				sim->getNeighborhoodSearch()->update_point_sets();
 #endif
 		}
-	} */
+	}
 }
 
 void SPH::GazeboSimulatorBase::updateDMVelocity()
@@ -437,23 +446,27 @@ void SPH::GazeboSimulatorBase::updateVMVelocity()
 
 void GazeboSimulatorBase::updateBoundaryForces()
 {
-	/* Real h = TimeManager::getCurrent()->getTimeStepSize();
-	GazeboSceneLoader::Scene &scene = getScene();
+	Real h = TimeManager::getCurrent()->getTimeStepSize();
 	Simulation *sim = Simulation::getCurrent();
 	const unsigned int nObjects = sim->numberOfBoundaryModels();
 	for (unsigned int i = 0; i < nObjects; i++)
 	{
 		BoundaryModel *bm = sim->getBoundaryModel(i);
-		RigidBodyObject *rbo = bm->getRigidBodyObject();
+		StaticRigidBody *rbo = dynamic_cast<StaticRigidBody *>(bm->getRigidBodyObject());
 		if (rbo->isDynamic())
 		{
+			auto currentRigidBody = boundariesToCollisions.find(rbo);
+			gazebo::physics::CollisionPtr gazeboRigidBody = currentRigidBody->second;
 			Vector3r force, torque;
+			// change rigid body fluid position?
 			bm->getForceAndTorque(force, torque);
-			rbo->addForce(force);
-			rbo->addTorque(torque);
+			const math::Vector3 gazeboForce = math::Vector3(force[0], force[1], force[2]);
+			const math::Vector3 gazeboTorque = math::Vector3(torque[0], torque[1], torque[2]);
+			gazeboRigidBody->GetLink()->AddForce(gazeboForce);
+			gazeboRigidBody->GetLink()->AddTorque(gazeboTorque);
 			bm->clearForceAndTorque();
 		}
-	} */
+	}
 }
 
 std::string GazeboSimulatorBase::real2String(const Real r)

@@ -18,6 +18,7 @@
 #include "gazebo/physics/PhysicsTypes.hh"
 #include "SPlisHSPlasH/TriangleMesh.h"
 #include "GazeboSimulatorBase.h"
+#include "SPlisHSPlasH/StaticRigidBody.h"
 #include <memory>
 
 enum CollisionGeometry
@@ -59,12 +60,11 @@ public:
   /// \brief Load plugin
 protected:
   void Load(physics::WorldPtr parent, sdf::ElementPtr sdf);
-  void OnUpdate();
-  bool timeStep();
   void initBoundaryData();
-  void initParameters();
   void reset();
   void loadObj(const std::string &filename, SPH::TriangleMesh &geo, const Vector3r &scale);
+  void ParseSDF();
+  void RegisterMesh(physics::CollisionPtr collision, std::string extension, std::string path);
 
   int activeParticles;
   int maxParticles;
@@ -73,13 +73,15 @@ protected:
 private:
   std::vector<event::ConnectionPtr> connections;
   std::unique_ptr<SPH::GazeboSimulatorBase> base;
-  unsigned int counter;
   unsigned int currentFluidModel = 0;
   transport::NodePtr node;
   physics::WorldPtr world;
-
+  sdf::ElementPtr fluidPluginSdf;
+  std::map<std::string, physics::CollisionPtr> filenamesToCollisions;
   /// \brief Publisher for fluid object visual messages.
   transport::PublisherPtr fluidObjPub;
+  transport::PublisherPtr rigidObjPub;
+  unsigned int simulationSteps;
 };
 } // namespace gazebo
 #endif

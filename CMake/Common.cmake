@@ -47,4 +47,4 @@ endif()
 
 add_definitions(-D_CRT_SECURE_NO_DEPRECATE)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
