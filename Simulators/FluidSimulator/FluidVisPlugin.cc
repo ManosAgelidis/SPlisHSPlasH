@@ -180,7 +180,7 @@ void FluidVisPlugin::RenderParticlesAsEntities(std::vector<Ogre::Vector3> &_part
 			sceneNode = this->manager->getRootSceneNode()->createChildSceneNode(name);
 			entity = this->manager->createEntity(name,
 												 Ogre::SceneManager::PT_SPHERE);
-			entity->setMaterialName("mymtl");
+			entity->setMaterialName("Gazebo/Red");
 		}
 
 		sceneNode->setVisible(true);

@@ -39,13 +39,13 @@ FluidSimulator::FluidSimulator()
 void FluidSimulator::RunStep()
 {
 	simulationSteps++;
-	base->updateBoundaryParticles(false);
+	base->updateBoundaryParticles(boundariesToCollisions,false);
 	Simulation *sim = Simulation::getCurrent();
 	START_TIMING("SimStep");
 	Simulation::getCurrent()->getTimeStep()->step();
 	STOP_TIMING_AVG;
 	INCREASE_COUNTER("Time step size", TimeManager::getCurrent()->getTimeStepSize());
-	base->updateBoundaryForces();
+	base->updateBoundaryForces(boundariesToCollisions);
 
 	if (simulationSteps % 5 == 0)
 	{
@@ -68,7 +68,7 @@ void FluidSimulator::RunStep()
 	boundary_particles_msg.set_name("boundary_particles");
 	for (int i = 0; i < SPH::Simulation::getCurrent()->numberOfBoundaryModels(); ++i) //scene.boundaryModels.size(); ++i)
 	{
-		BoundaryModel_Akinci2012 *bm = static_cast<BoundaryModel_Akinci2012*>(SPH::Simulation::getCurrent()->getBoundaryModel(i));
+		BoundaryModel_Akinci2012 *bm = static_cast<BoundaryModel_Akinci2012 *>(SPH::Simulation::getCurrent()->getBoundaryModel(i));
 		for (int j = 0; j < (int)bm->numberOfParticles(); j++)
 		{
 			ignition::math::Vector3d boundary_particles = ignition::math::Vector3d(
@@ -126,6 +126,7 @@ void FluidSimulator::Load(physics::WorldPtr parent, sdf::ElementPtr sdf)
 {
 	this->world = parent;
 	this->fluidPluginSdf = sdf;
+	this->ParseSDF();
 	this->connections.push_back(event::Events::ConnectWorldUpdateEnd(
 		boost::bind(&FluidSimulator::RunStep, this)));
 }
@@ -136,7 +137,7 @@ void FluidSimulator::RegisterMesh(physics::CollisionPtr collision, std::string e
 	const gazebo::common::Mesh *mesh = common::MeshManager::Instance()->GetMesh(collision->GetName());
 
 	// Export the mesh to a temp file in the selected format
-	std::string objFilePath = path + collision->GetName() + "." + extension;
+	std::string objFilePath = path + collision->GetModel()->GetName() + "_" + collision->GetName() + "." + extension;
 	common::MeshManager::Instance()->Export(mesh, FileSystem::normalizePath(objFilePath), extension);
 
 	// Map the mesh filename to the collision shape
@@ -221,15 +222,15 @@ void FluidSimulator::ParseSDF()
 					ignition::math::Vector2d size;
 					// Plane dimensions. To prevent a huge plane which causes problems when
 					// sampling it, for now it is harcoded
-					if ((*collision_it)->GetName() == "collisionground_plane_1")
+					if ((*collision_it)->GetName() == "collision_ground_plane")
 					{
 						normal = ignition::math::Vector3d(0, 0, 1); // = geom_elem->GetElement(geom_type)->GetElement("normal")->Get<ignition::math::Vector3d>();
 						size = ignition::math::Vector2d(2.0, 2.0);  //= geom_elem->GetElement(geom_type)->GetElement("size")->Get<ignition::math::Vector2d>();
 					}
 					else
 					{
-						normal = ignition::math::Vector3d(0, 0, 1); // = geom_elem->GetElement(geom_type)->GetElement("normal")->Get<ignition::math::Vector3d>();
-						size = ignition::math::Vector2d(2.0, 0.40); //= geom_elem->GetElement(geom_type)->GetElement("size")->Get<ignition::math::Vector2d>();
+						normal  = geometry_elem->GetElement(geometry_type)->GetElement("normal")->Get<ignition::math::Vector3d>();
+						size =  geometry_elem->GetElement(geometry_type)->GetElement("size")->Get<ignition::math::Vector2d>();
 					}
 
 					// Generate the plane mesh
@@ -276,7 +277,7 @@ void FluidSimulator::reset()
 	base->reset(); */
 }
 
-void loadObj(const std::string &filename, SPH::TriangleMesh &mesh, const Vector3r &scale)
+void FluidSimulator::loadObj(const std::string &filename, SPH::TriangleMesh &mesh, const Vector3r &scale)
 {
 	std::vector<OBJLoader::Vec3f> x;
 	std::vector<OBJLoader::Vec3f> normals;
@@ -317,14 +318,14 @@ void FluidSimulator::initBoundaryData()
 	unsigned int currentModelIndex = 0;
 	for (auto it = filenamesToCollisions.begin(); it != filenamesToCollisions.end(); ++it)
 	{
-		std::vector<Vector3r> boundaryParticles;
+ 		std::vector<Vector3r> boundaryParticles;
 
 		std::string collisionElem = it->second->GetSDF()->GetAttribute("name")->GetAsString();
 		sdf::ElementPtr geometryElem = it->second->GetSDF()->GetElement("geometry");
 		std::string geometry_type = geometryElem->GetFirstElement()->GetName();
-		std::shared_ptr<StaticRigidBody> rigidBody = std::make_shared<StaticRigidBody>();
-
-		if (it->second->GetModel()->GetSDF()->HasAttribute("static"))
+		//std::shared_ptr<StaticRigidBody> rigidBody = std::make_shared<StaticRigidBody>();
+		StaticRigidBody* rigidBody= new StaticRigidBody();
+		if (it->second->GetModel()->GetSDF()->HasElement("static"))
 		{
 			bool isStatic = it->second->GetModel()->GetSDF()->Get<bool>("static");
 			if (isStatic)
@@ -376,17 +377,20 @@ void FluidSimulator::initBoundaryData()
 			boundaryParticles[j] = fluidObjectOrientation * boundaryParticles[j] + fluidObjectPosition;
 
 		BoundaryModel_Akinci2012 *bm = new BoundaryModel_Akinci2012();
-		bm->initModel(rigidBody.get(), static_cast<unsigned int>(boundaryParticles.size()), &boundaryParticles[0]);
+		bm->initModel(rigidBody, static_cast<unsigned int>(boundaryParticles.size()), &boundaryParticles[0]);
 		sim->addBoundaryModel(bm);
 		for (unsigned int j = 0; j < geo.numVertices(); j++)
 			geo.getVertices()[j] = fluidObjectOrientation * geo.getVertices()[j] + fluidObjectPosition;
 		geo.updateNormals();
 		geo.updateVertexNormals();
+
+		boundariesToCollisions.insert(std::pair<StaticRigidBody *, physics::CollisionPtr>(rigidBody, it->second));
 	}
 
 	sim->performNeighborhoodSearchSort();
+	base->updateBoundaryParticles(boundariesToCollisions,true);
 	sim->updateBoundaryVolume();
-
+	
 #ifdef GPU_NEIGHBORHOOD_SEARCH
 	// copy the particle data to the GPU
 	sim->getNeighborhoodSearch()->update_point_sets();

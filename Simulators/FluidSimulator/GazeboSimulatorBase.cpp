@@ -349,7 +349,7 @@ void GazeboSimulatorBase::reset()
 #endif */
 }
 
-void GazeboSimulatorBase::updateBoundaryParticles(const bool forceUpdate = false)
+void GazeboSimulatorBase::updateBoundaryParticles(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr>& boundariesToCollisions,const bool forceUpdate = false)
 {
 	Simulation *sim = Simulation::getCurrent();
 	GazeboSceneLoader::Scene &scene = getScene();
@@ -365,7 +365,7 @@ void GazeboSimulatorBase::updateBoundaryParticles(const bool forceUpdate = false
 			//#pragma omp parallel default(shared)
 			{
 				//#pragma omp for schedule(static)
-				physics::CollisionPtr currentRigidBody = boundariesToCollisions[rbo];
+				physics::CollisionPtr currentRigidBody = boundariesToCollisions.find(rbo)->second;
 				physics::LinkPtr gazeboBodyLink = currentRigidBody->GetLink();
 
 				// Position of rigid body
@@ -444,7 +444,7 @@ void SPH::GazeboSimulatorBase::updateVMVelocity()
 	} */
 }
 
-void GazeboSimulatorBase::updateBoundaryForces()
+void GazeboSimulatorBase::updateBoundaryForces(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr>& boundariesToCollisions)
 {
 	Real h = TimeManager::getCurrent()->getTimeStepSize();
 	Simulation *sim = Simulation::getCurrent();

@@ -10,10 +10,10 @@
 #include "SPlisHSPlasH/BoundaryModel_Koschier2017.h"
 #include "SPlisHSPlasH/BoundaryModel_Bender2019.h"
 #include "SPlisHSPlasH/TriangleMesh.h"
-#include "SPlisHSPlasH/StaticRigidBody.h"
 #include "gazebo/physics/PhysicsTypes.hh"
 #include "gazebo/common/CommonTypes.hh"
 #include "gazebo/physics/physics.hh"
+#include "SPlisHSPlasH/StaticRigidBody.h"
 #include <memory>
 
 using namespace gazebo;
@@ -50,16 +50,15 @@ namespace SPH
 		void initDensityMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool isDynamic, BoundaryModel_Koschier2017 *boundaryModel);
 		void initVolumeMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool isDynamic, BoundaryModel_Bender2019 *boundaryModel);
 		void reset();
-		void updateBoundaryParticles(const bool forceUpdate);
+		void updateBoundaryParticles(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr>& boundariesToCollisions,const bool forceUpdate);
 		void updateDMVelocity();
 		void updateVMVelocity();
-		void updateBoundaryForces();
+		void updateBoundaryForces(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr>& boundariesToCollisions);
 		Utilities::GazeboSceneLoader *getSceneLoader() { return m_sceneLoader.get(); }
 		std::string real2String(const Real r);
 		static void loadObj(const std::string &filename, TriangleMesh &mesh, const Vector3r &scale);
 		Utilities::GazeboSceneLoader::Scene& getScene() { return m_scene; }
 		std::unique_ptr<Utilities::GazeboSceneLoader> m_sceneLoader;
-		std::map<SPH::StaticRigidBody *, physics::CollisionPtr>  boundariesToCollisions;
 	};
 }
  

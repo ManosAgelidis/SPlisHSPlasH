@@ -46,20 +46,6 @@ add_library(FluidSimulator SHARED
 	FluidSimulator.cpp
 	GazeboSceneLoader.cpp
 	GazeboSceneLoader.h
-
-	#${PROJECT_PATH}/Utilities/BinaryFileReaderWriter.h
-	#${PROJECT_PATH}/Utilities/Counting.h
-	#${PROJECT_PATH}/Utilities/FileSystem.h
-	#${PROJECT_PATH}/Utilities/Logger.h
-	#${PROJECT_PATH}/Utilities/OBJLoader.h
-	#${PROJECT_PATH}/Utilities/PartioReaderWriter.cpp
-	#${PROJECT_PATH}/Utilities/PartioReaderWriter.h
-	#${PROJECT_PATH}/Utilities/StringTools.h	
-	#${PROJECT_PATH}/Utilities/SystemInfo.h
-	#${PROJECT_PATH}/Utilities/Timing.h
-	#${PROJECT_PATH}/Utilities/Version.h
-	#${PROJECT_PATH}/Simulators/Common/GazeboSimulatorBase.cpp
-	#${PROJECT_PATH}/Simulators/Common/GazeboSimulatorBase.h
 	GazeboSimulatorBase.cpp
 	GazeboSimulatorBase.h
 )
