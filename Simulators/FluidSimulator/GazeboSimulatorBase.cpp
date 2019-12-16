@@ -61,11 +61,16 @@ void GazeboSimulatorBase::readParameters()
 	}
 }
 
-void GazeboSimulatorBase::init(sdf::ElementPtr fluidSdf)
+void GazeboSimulatorBase::init(const sdf::ElementPtr &fluidSdf)
 {
 	initParameters();
 	m_sceneLoader = std::make_unique<GazeboSceneLoader>();
 	m_sceneLoader->readScene(fluidSdf, m_scene);
+}
+
+void GazeboSimulatorBase::processBoundary(const gazebo::physics::CollisionPtr &collision, const std::string &objFilePath)
+{
+	m_sceneLoader->processBoundary(m_scene, collision, objFilePath);
 }
 
 void GazeboSimulatorBase::cleanup()
@@ -349,7 +354,7 @@ void GazeboSimulatorBase::reset()
 #endif */
 }
 
-void GazeboSimulatorBase::updateBoundaryParticles(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr>& boundariesToCollisions,const bool forceUpdate = false)
+void GazeboSimulatorBase::updateBoundaryParticles(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr> &boundariesToCollisions, const bool forceUpdate = false)
 {
 	Simulation *sim = Simulation::getCurrent();
 	GazeboSceneLoader::Scene &scene = getScene();
@@ -365,7 +370,7 @@ void GazeboSimulatorBase::updateBoundaryParticles(const std::map<SPH::StaticRigi
 			//#pragma omp parallel default(shared)
 			{
 				//#pragma omp for schedule(static)
-				physics::CollisionPtr currentRigidBody = boundariesToCollisions.find(rbo)->second;
+				physics::CollisionPtr currentRigidBody = scene.boundaryModels[i]->rigidBody;
 				physics::LinkPtr gazeboBodyLink = currentRigidBody->GetLink();
 
 				// Position of rigid body
@@ -389,7 +394,6 @@ void GazeboSimulatorBase::updateBoundaryParticles(const std::map<SPH::StaticRigi
 
 				for (int j = 0; j < (int)bm->numberOfParticles(); j++)
 				{
-
 					bm->getPosition(j) = fluidObjectRotation * bm->getPosition0(j) + fluidObjectPosition;
 					if (rbo->isDynamic())
 						bm->getVelocity(j) = fluidObjectAngularVel.cross(bm->getPosition(j) - fluidObjectPosition) + fluidObjectLinearVel;
@@ -444,10 +448,11 @@ void SPH::GazeboSimulatorBase::updateVMVelocity()
 	} */
 }
 
-void GazeboSimulatorBase::updateBoundaryForces(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr>& boundariesToCollisions)
+void GazeboSimulatorBase::updateBoundaryForces(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr> &boundariesToCollisions)
 {
 	Real h = TimeManager::getCurrent()->getTimeStepSize();
 	Simulation *sim = Simulation::getCurrent();
+	GazeboSceneLoader::Scene &scene = getScene();
 	const unsigned int nObjects = sim->numberOfBoundaryModels();
 	for (unsigned int i = 0; i < nObjects; i++)
 	{
@@ -455,8 +460,8 @@ void GazeboSimulatorBase::updateBoundaryForces(const std::map<SPH::StaticRigidBo
 		StaticRigidBody *rbo = dynamic_cast<StaticRigidBody *>(bm->getRigidBodyObject());
 		if (rbo->isDynamic())
 		{
-			auto currentRigidBody = boundariesToCollisions.find(rbo);
-			gazebo::physics::CollisionPtr gazeboRigidBody = currentRigidBody->second;
+			gazebo::physics::CollisionPtr gazeboRigidBody = scene.boundaryModels[i]->rigidBody;
+			
 			Vector3r force, torque;
 			// change rigid body fluid position?
 			bm->getForceAndTorque(force, torque);

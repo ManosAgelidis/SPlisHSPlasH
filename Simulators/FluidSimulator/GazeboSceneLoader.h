@@ -15,11 +15,24 @@ class GazeboSceneLoader
 {
 
 public:
-	
+	struct GazeboBoundaryData
+	{
+		std::string collisionName;
+		std::string objFilePath;
+		Vector3r translation;
+		Matrix3r rotation;
+		Vector3r scale;
+		bool dynamic;
+		bool isWall;
+		Real density = 1000.0;
+		gazebo::physics::CollisionPtr rigidBody;
+		unsigned int samplingMode;
+	};
+
 	/** \brief Struct to store scene information */
 	struct Scene
 	{
-		std::vector<SceneLoader::BoundaryData *> boundaryModels;
+		std::vector<GazeboBoundaryData *> boundaryModels;
 		std::vector<SceneLoader::FluidData *> fluidModels;
 		std::vector<SceneLoader::FluidBlock *> fluidBlocks;
 		std::vector<SceneLoader::EmitterData *> emitters;
@@ -28,20 +41,20 @@ public:
 	};
 
 	template <typename T>
-	bool getSDFParameter(const sdf::ElementPtr sdf,T &parameter, const std::string &parameterName, const T& defaultValue);
-	void readScene(sdf::ElementPtr sdf, Scene &scene);
+	bool getSDFParameter(const sdf::ElementPtr sdf, T &parameter, const std::string &parameterName, const T &defaultValue);
+	void readScene(const sdf::ElementPtr &fluidSceneSDF, Scene &scene);
 	void readParameterObject(const std::string &key, GenParam::ParameterObject *paramObj);
 	bool getVector3rParameter(const sdf::ElementPtr sdf, Vector3r &parameter, const ::std::string &parameterName, const Vector3r &defaultValue);
-	
-	
+	void processBoundary(Scene &scene, const gazebo::physics::CollisionPtr &collision, std::string objFilePath);
 	//void getVector3iParameter(const sdf::ElementPtr sdf, Eigen::Matrix<unsigned int, 3, 1> &parameter, const ::std::string &parameterName, const Eigen::Matrix<unsigned int, 3, 1> &defaultValue)
 	//void getSDFParameter(Scene &scene, sdf::ElementPtr sdf, const std::string &parameterName);
 
 private:
-	sdf::ElementPtr sdf;
-	void processFluidModels(Scene& scene, const sdf::ElementPtr& sdf);
-	void processFluidBlocks(Scene& scene, const sdf::ElementPtr& sdf);
-	void processFluidEmmiters(Scene& scene, const sdf::ElementPtr& sdf);
+	sdf::ElementPtr fluidSceneSDF;
+	void processFluidModels(Scene &scene, const sdf::ElementPtr &sdf);
+	void processFluidBlocks(Scene &scene, const sdf::ElementPtr &sdf);
+	void processFluidEmmiters(Scene &scene, const sdf::ElementPtr &sdf);
+	
 };
 
 /* template <>

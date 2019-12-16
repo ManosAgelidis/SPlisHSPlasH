@@ -1,7 +1,7 @@
 #include "GazeboSceneLoader.h"
 #include "Utilities/Logger.h"
 #include <iostream>
-
+#include "gazebo/physics/physics.hh"
 using namespace Utilities;
 using namespace GenParam;
 using namespace std;
@@ -162,17 +162,100 @@ void GazeboSceneLoader::processFluidEmmiters(Scene &scene, const sdf::ElementPtr
 	}
 }
 
-void GazeboSceneLoader::readScene(sdf::ElementPtr sdf, Scene &scene)
+void GazeboSceneLoader::processBoundary(Scene &scene, const gazebo::physics::CollisionPtr &collision, std::string objFilePath)
+{
+
+	GazeboBoundaryData *data = new GazeboBoundaryData();
+	data->objFilePath = objFilePath;
+	if (collision->GetModel()->GetSDF()->HasElement("static"))
+	{
+		data->dynamic = !collision->GetModel()->GetSDF()->Get<bool>("static");
+	}
+	data->collisionName = collision->GetModel()->GetSDF()->GetAttribute("name")->GetAsString() + "_" + collision->GetName() + ".obj";
+	gazebo::math::Pose collisionPose = collision->GetLink()->GetWorldPose();
+	/* if (collisionElement->HasElement("pose"))
+		collisionPose = collisionElement->GetElement("pose")->Get<gazebo::math::Pose>();
+	 */
+	// TODO scale the mesh if necessary
+	data->scale = Vector3r::Ones();
+
+	// translation
+	gazebo::math::Vector3 translation = collisionPose.pos;
+	Vector3r fluidObjectTranslation = Vector3r(translation.x, translation.y, translation.z);
+	data->translation = fluidObjectTranslation;
+
+	// set the orientation of the geom as float4
+	gazebo::math::Matrix3 orientation = collisionPose.rot.GetAsMatrix3();
+	Matrix3r fluidObjectOrientation;
+	fluidObjectOrientation << orientation[0][0], orientation[0][1], orientation[0][2],
+		orientation[1][0], orientation[1][1], orientation[1][2],
+		orientation[2][0], orientation[2][1], orientation[2][2];
+	data->rotation = fluidObjectOrientation;
+	data->rigidBody = collision;
+	scene.boundaryModels.push_back(data);
+	/* if (worldSDF->HasElement("model"))
+	{
+		sdf::ElementPtr modelElement = worldSDF->GetElement("model");
+		while (modelElement)
+		{
+			if (modelElement->HasElement("link"))
+			{
+				sdf::ElementPtr linkElement = modelElement->GetElement("link");
+				while (linkElement)
+				{
+					if (linkElement->HasElement("collision"))
+					{
+						sdf::ElementPtr collisionElement = linkElement->GetElement("collision");
+						while (collisionElement)
+						{
+							GazeboBoundaryData *data = new GazeboBoundaryData();
+							if (modelElement->HasElement("static"))
+							{
+								data->dynamic = !modelElement->Get<bool>("static");
+							}
+							data->collisionName = modelElement->GetAttribute("name")->GetAsString() + "_" + collisionElement->GetAttribute("name")->GetAsString();
+							gazebo::math::Pose collisionPose = gazebo::math::Pose::Zero;
+							if (collisionElement->HasElement("pose"))
+								collisionPose = collisionElement->GetElement("pose")->Get<gazebo::math::Pose>();
+							// TODO scale the mesh if necessary
+							data->scale = Vector3r::Ones();
+
+							// translation
+							gazebo::math::Vector3 translation = collisionPose.pos;
+							Vector3r fluidObjectTranslation = Vector3r(translation.x, translation.y, translation.z);
+							data->translation = fluidObjectTranslation;
+
+							// set the orientation of the geom as float4
+							gazebo::math::Matrix3 orientation = collisionPose.rot.GetAsMatrix3();
+							Matrix3r fluidObjectOrientation;
+							fluidObjectOrientation << orientation[0][0], orientation[0][1], orientation[0][2],
+								orientation[1][0], orientation[1][1], orientation[1][2],
+								orientation[2][0], orientation[2][1], orientation[2][2];
+							data->rotation = fluidObjectOrientation;
+
+							scene.boundaryModels.push_back(data);
+							collisionElement = collisionElement->GetNextElement("collision");
+						}
+					}
+					linkElement = linkElement->GetNextElement("link");
+				}
+			}
+			modelElement = modelElement->GetNextElement("model");
+		}
+	} */
+}
+
+void GazeboSceneLoader::readScene(const sdf::ElementPtr &fluidSceneSDF, Scene &scene)
 {
 	LOG_INFO << "Load scene file from sdf: ";
-	if (sdf != nullptr)
+	if (fluidSceneSDF != nullptr)
 	{
-		this->sdf = sdf;
+		this->fluidSceneSDF = fluidSceneSDF;
 	}
 
-	if (sdf->HasElement("fluidConfiguration"))
+	if (fluidSceneSDF->HasElement("fluidConfiguration"))
 	{
-		sdf::ElementPtr fluidConfiguration = sdf->GetElement("fluidConfiguration");
+		sdf::ElementPtr fluidConfiguration = fluidSceneSDF->GetElement("fluidConfiguration");
 		getSDFParameter<Real>(fluidConfiguration, scene.timeStepSize, "timeStepSize", 0.001);
 		getSDFParameter<Real>(fluidConfiguration, scene.particleRadius, "particleRadius", 0.025);
 	}
@@ -181,11 +264,11 @@ void GazeboSceneLoader::readScene(sdf::ElementPtr sdf, Scene &scene)
 		std::cout << "Fluid configuration missing from sdf, using default values" << std::endl;
 	}
 
-	processFluidModels(scene, sdf);
-	processFluidBlocks(scene, sdf);
-	processFluidEmmiters(scene, sdf);
+	processFluidModels(scene, fluidSceneSDF);
+	processFluidBlocks(scene, fluidSceneSDF);
+	processFluidEmmiters(scene, fluidSceneSDF);
+	//processBoundaries(scene, fluidSceneSDF->GetParent());
 }
-
 
 void GazeboSceneLoader::readParameterObject(const std::string &key, ParameterObject *paramObj)
 {
@@ -197,9 +280,9 @@ void GazeboSceneLoader::readParameterObject(const std::string &key, ParameterObj
 	//////////////////////////////////////////////////////////////////////////
 	// read configuration
 	//////////////////////////////////////////////////////////////////////////
-	if (this->sdf->HasElement(key))
+	if (this->fluidSceneSDF->HasElement(key))
 	{
-		sdf::ElementPtr config = this->sdf->GetElement(key);
+		sdf::ElementPtr config = this->fluidSceneSDF->GetElement(key);
 		std::vector<std::string> newParamList;
 
 		for (unsigned int i = 0; i < numParams; i++)
@@ -234,7 +317,7 @@ void GazeboSceneLoader::readParameterObject(const std::string &key, ParameterObj
 			{
 				unsigned char val;
 				if (getSDFParameter<unsigned char>(config, val, paramBase->getName(), 0))
-						static_cast<NumericParameter<unsigned char> *>(paramBase)->setValue(val);
+					static_cast<NumericParameter<unsigned char> *>(paramBase)->setValue(val);
 			}
 			else if (paramBase->getType() == ParameterBase::INT32)
 			{

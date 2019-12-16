@@ -39,7 +39,7 @@ FluidSimulator::FluidSimulator()
 void FluidSimulator::RunStep()
 {
 	simulationSteps++;
-	base->updateBoundaryParticles(boundariesToCollisions,false);
+	base->updateBoundaryParticles(boundariesToCollisions, false);
 	Simulation *sim = Simulation::getCurrent();
 	START_TIMING("SimStep");
 	Simulation::getCurrent()->getTimeStep()->step();
@@ -105,6 +105,8 @@ void FluidSimulator::Init()
 	base = std::make_unique<GazeboSimulatorBase>();
 	base->init(this->fluidPluginSdf);
 
+	this->ParseSDF();
+
 	Simulation *sim = Simulation::getCurrent();
 	sim->init(base->getScene().particleRadius, false);
 
@@ -126,7 +128,6 @@ void FluidSimulator::Load(physics::WorldPtr parent, sdf::ElementPtr sdf)
 {
 	this->world = parent;
 	this->fluidPluginSdf = sdf;
-	this->ParseSDF();
 	this->connections.push_back(event::Events::ConnectWorldUpdateEnd(
 		boost::bind(&FluidSimulator::RunStep, this)));
 }
@@ -137,9 +138,9 @@ void FluidSimulator::RegisterMesh(physics::CollisionPtr collision, std::string e
 	const gazebo::common::Mesh *mesh = common::MeshManager::Instance()->GetMesh(collision->GetName());
 
 	// Export the mesh to a temp file in the selected format
-	std::string objFilePath = path + collision->GetModel()->GetName() + "_" + collision->GetName() + "." + extension;
+	std::string objFilePath = path + collision->GetModel()->GetName() + "_" + collision->GetName() + ".obj";
 	common::MeshManager::Instance()->Export(mesh, FileSystem::normalizePath(objFilePath), extension);
-
+	base->processBoundary(collision, objFilePath);
 	// Map the mesh filename to the collision shape
 	filenamesToCollisions.insert(std::pair<std::string, physics::CollisionPtr>(objFilePath, collision));
 }
@@ -229,12 +230,12 @@ void FluidSimulator::ParseSDF()
 					}
 					else
 					{
-						normal  = geometry_elem->GetElement(geometry_type)->GetElement("normal")->Get<ignition::math::Vector3d>();
-						size =  geometry_elem->GetElement(geometry_type)->GetElement("size")->Get<ignition::math::Vector2d>();
+						normal = geometry_elem->GetElement(geometry_type)->GetElement("normal")->Get<ignition::math::Vector3d>();
+						size = geometry_elem->GetElement(geometry_type)->GetElement("size")->Get<ignition::math::Vector2d>();
 					}
 
 					// Generate the plane mesh
-					common::MeshManager::Instance()->CreatePlane((*collision_it)->GetName(), normal, 0.0, size, ignition::math::Vector2d(4.0, 4.0), ignition::math::Vector2d());
+					common::MeshManager::Instance()->CreatePlane((*collision_it)->GetName(), ignition::math::Vector3d(0.0, 0.0, 1.0), 0.0, size, ignition::math::Vector2d(4.0, 4.0), ignition::math::Vector2d());
 
 					//Generate an obj file in the temporary directory containing the mesh of the plane
 					RegisterMesh(*collision_it, "obj", objFilePath);
@@ -249,11 +250,12 @@ void FluidSimulator::ParseSDF()
 					const std::string filepath = common::SystemPaths::Instance()->FindFileURI(uri);
 					const gazebo::common::Mesh *mesh = common::MeshManager::Instance()->GetMesh(filepath);
 
+					std::string fullMeshPath = objFilePath + (*collision_it)->GetModel()->GetName() + "_" + (*collision_it)->GetName() + ".obj";
 					// Export the mesh to a temp file in the selected format
-					common::MeshManager::Instance()->Export(mesh, FileSystem::normalizePath(objFilePath + (*collision_it)->GetName() + "." + "obj"), "obj");
-
+					common::MeshManager::Instance()->Export(mesh, FileSystem::normalizePath(fullMeshPath), "obj");
+					base->processBoundary(*collision_it, fullMeshPath);
 					// Map the mesh filename to the collision shape
-					filenamesToCollisions.insert(std::pair<std::string, physics::CollisionPtr>(objFilePath + (*collision_it)->GetName() + "." + "obj", (*collision_it)));
+					filenamesToCollisions.insert(std::pair<std::string, physics::CollisionPtr>(fullMeshPath, (*collision_it)));
 				}
 				else
 				{
@@ -316,26 +318,59 @@ void FluidSimulator::initBoundaryData()
 	GazeboSceneLoader::Scene &scene = base->getScene(); // scene
 
 	unsigned int currentModelIndex = 0;
-	for (auto it = filenamesToCollisions.begin(); it != filenamesToCollisions.end(); ++it)
+	for (unsigned int i = 0; i < scene.boundaryModels.size(); ++i)
 	{
- 		std::vector<Vector3r> boundaryParticles;
+		StaticRigidBody *rigidBody = new StaticRigidBody();
+		if (scene.boundaryModels[i]->rigidBody->GetModel()->GetSDF()->HasElement("static"))
+		{
+			rigidBody->setDynamic(scene.boundaryModels[i]->dynamic);
+			std::cout << scene.boundaryModels[i]->rigidBody->GetModel()->GetName() << "is dynamic " << scene.boundaryModels[i]->dynamic << std::endl;
+		}
 
+		TriangleMesh &geo = rigidBody->getGeometry();
+		loadObj(scene.boundaryModels[i]->objFilePath, geo, Vector3r::Ones());
+		std::vector<Vector3r> boundaryParticles;
+		// LOG_INFO << "Poisson disk surface sampling of " << meshFileName;
+		START_TIMING("Poisson disk sampling");
+		PoissonDiskSampling sampling;
+		sampling.sampleMesh(geo.numVertices(), geo.getVertices().data(), geo.numFaces(), geo.getFaces().data(), scene.particleRadius, 10, 1, boundaryParticles);
+		STOP_TIMING_AVG;
+		/* 	for (unsigned int j = 0; j < (unsigned int)boundaryParticles.size(); j++)
+		{
+		//	boundaryParticles[j] = scene.boundaryModels[i]->rotation * boundaryParticles[j] + scene.boundaryModels[i]->translation;
+			std::cout << boundaryParticles[j][2] << std::endl;
+		} */
+		//boundaryParticles[j] = fluidObjectOrientation * boundaryParticles[j] + fluidObjectPosition;
+
+		rigidBody->setWorldSpacePosition(scene.boundaryModels[i]->translation);
+		rigidBody->setWorldSpaceRotation(scene.boundaryModels[i]->rotation);
+		rigidBody->setPosition(scene.boundaryModels[i]->translation);
+		rigidBody->setRotation(scene.boundaryModels[i]->rotation);
+
+		BoundaryModel_Akinci2012 *bm = new BoundaryModel_Akinci2012();
+		bm->initModel(rigidBody, static_cast<unsigned int>(boundaryParticles.size()), &boundaryParticles[0]);
+		sim->addBoundaryModel(bm);
+
+		for (unsigned int j = 0; j < geo.numVertices(); j++)
+			geo.getVertices()[j] = scene.boundaryModels[i]->rotation * geo.getVertices()[j] + scene.boundaryModels[i]->translation;
+
+		geo.updateNormals();
+		geo.updateVertexNormals();
+		boundariesToCollisions.insert(std::pair<StaticRigidBody *, physics::CollisionPtr>(rigidBody, scene.boundaryModels[i]->rigidBody));
+	}
+	/* 	for (auto it = filenamesToCollisions.begin(); it != filenamesToCollisions.end(); ++it)
+	{
+		std::vector<Vector3r> boundaryParticles;
+		std::vector<std::string> strs;
+		//boost::split(strs, filenamesToCollisions->first, boost::is_any_of(objFilePath));
 		std::string collisionElem = it->second->GetSDF()->GetAttribute("name")->GetAsString();
 		sdf::ElementPtr geometryElem = it->second->GetSDF()->GetElement("geometry");
 		std::string geometry_type = geometryElem->GetFirstElement()->GetName();
 		//std::shared_ptr<StaticRigidBody> rigidBody = std::make_shared<StaticRigidBody>();
-		StaticRigidBody* rigidBody= new StaticRigidBody();
+		StaticRigidBody *rigidBody = new StaticRigidBody();
 		if (it->second->GetModel()->GetSDF()->HasElement("static"))
 		{
-			bool isStatic = it->second->GetModel()->GetSDF()->Get<bool>("static");
-			if (isStatic)
-			{
-				rigidBody->setDynamic(false);
-			}
-			else
-			{
-				rigidBody->setDynamic(true);
-			}
+			rigidBody->setDynamic(it->second->GetModel()->GetSDF()->Get<bool>("static"));
 		}
 
 		TriangleMesh &geo = rigidBody->getGeometry();
@@ -368,29 +403,34 @@ void FluidSimulator::initBoundaryData()
 			orientation[1][0], orientation[1][1], orientation[1][2],
 			orientation[2][0], orientation[2][1], orientation[2][2];
 
-		rigidBody->setWorldSpacePosition(fluidObjectPosition);
-		rigidBody->setWorldSpaceRotation(fluidObjectOrientation);
-		rigidBody->setPosition(fluidObjectPosition);
-		rigidBody->setRotation(fluidObjectOrientation);
-
 		for (unsigned int j = 0; j < (unsigned int)boundaryParticles.size(); j++)
-			boundaryParticles[j] = fluidObjectOrientation * boundaryParticles[j] + fluidObjectPosition;
+		{
+			//		boundaryParticles[j] = findBoundaryFromRigidBody(strs[1], scene)->rotation * boundaryParticles[j] + findBoundaryFromRigidBody(strs[1], scene)->translation;
+			std::cout << boundaryParticles[j][2] << std::endl;
+		}
+		//boundaryParticles[j] = fluidObjectOrientation * boundaryParticles[j] + fluidObjectPosition;
 
+		/* 	rigidBody->setWorldSpacePosition(findBoundaryFromRigidBody(strs[1], scene)->translation);
+		rigidBody->setWorldSpaceRotation(findBoundaryFromRigidBody(strs[1], scene)->rotation);
+		rigidBody->setPosition(findBoundaryFromRigidBody(strs[1], scene)->translation);
+		rigidBody->setRotation(findBoundaryFromRigidBody(strs[1], scene)->rotation);
+ 
 		BoundaryModel_Akinci2012 *bm = new BoundaryModel_Akinci2012();
 		bm->initModel(rigidBody, static_cast<unsigned int>(boundaryParticles.size()), &boundaryParticles[0]);
 		sim->addBoundaryModel(bm);
-		for (unsigned int j = 0; j < geo.numVertices(); j++)
-			geo.getVertices()[j] = fluidObjectOrientation * geo.getVertices()[j] + fluidObjectPosition;
+
+		/* 	for (unsigned int j = 0; j < geo.numVertices(); j++)
+			geo.getVertices()[j] = findBoundaryFromRigidBody(strs[1], scene)->rotation * geo.getVertices()[j] + findBoundaryFromRigidBody(strs[1], scene)->translation;
+	 
 		geo.updateNormals();
 		geo.updateVertexNormals();
-
 		boundariesToCollisions.insert(std::pair<StaticRigidBody *, physics::CollisionPtr>(rigidBody, it->second));
-	}
+	} */
 
 	sim->performNeighborhoodSearchSort();
-	base->updateBoundaryParticles(boundariesToCollisions,true);
+	base->updateBoundaryParticles(boundariesToCollisions, true);
 	sim->updateBoundaryVolume();
-	
+
 #ifdef GPU_NEIGHBORHOOD_SEARCH
 	// copy the particle data to the GPU
 	sim->getNeighborhoodSearch()->update_point_sets();
