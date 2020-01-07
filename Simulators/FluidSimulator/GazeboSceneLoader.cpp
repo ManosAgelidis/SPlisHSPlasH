@@ -79,11 +79,11 @@ void GazeboSceneLoader::processFluidModels(Scene &scene, const sdf::ElementPtr &
 				getVector3rParameter(fluidModelsElement, data->initialVelocity, "initialVelocity", Vector3r::Zero());
 				getSDFParameter<bool>(fluidModelsElement, data->invert, "invert", false);
 
-				/* Eigen::Matrix<unsigned int, 3, 1> resolutionSDF;
-				getVector3iParameter(fluidModelsElement,resolutionSDF ,"resolutionSDF", Eigen::Matrix<unsigned int, 3, 1>(20,20,20) );
+				Eigen::Matrix<unsigned int, 3, 1> resolutionSDF;
+				//	getVector3iParameter(fluidModelsElement,resolutionSDF ,"resolutionSDF", Eigen::Matrix<unsigned int, 3, 1>(20,20,20) );
 				data->resolutionSDF[0] = resolutionSDF[0];
 				data->resolutionSDF[1] = resolutionSDF[1];
-				data->resolutionSDF[2] = resolutionSDF[2]; */
+				data->resolutionSDF[2] = resolutionSDF[2];
 
 				getSDFParameter<unsigned char>(fluidModelsElement, data->mode, "denseMode", 0);
 
@@ -193,6 +193,10 @@ void GazeboSceneLoader::processBoundary(Scene &scene, const gazebo::physics::Col
 	data->rotation = fluidObjectOrientation;
 	data->rigidBody = collision;
 	scene.boundaryModels.push_back(data);
+
+//	data->mapResolution = Eigen::Matrix<unsigned int, 3, 1>(20, 20, 20);
+	data->mapResolution = Eigen::Matrix<unsigned int, 3, 1>(5,5,5);
+	//readVector(boundaryModel["mapResolution"], data->mapResolution);
 	/* if (worldSDF->HasElement("model"))
 	{
 		sdf::ElementPtr modelElement = worldSDF->GetElement("model");

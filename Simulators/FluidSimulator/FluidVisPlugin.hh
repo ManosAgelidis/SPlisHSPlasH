@@ -72,6 +72,9 @@ class GAZEBO_VISIBLE FluidVisPlugin : public SystemPlugin
   private:
     void RenderParticlesAsEntities(std::vector<Ogre::Vector3> &_particles, std::string _name);
 
+  private:
+    void RenderParticlesAsEntitiesBlue(std::vector<Ogre::Vector3> &_particles, std::string _name);
+
     /// \brief Communication Node
   private:
     transport::NodePtr node;

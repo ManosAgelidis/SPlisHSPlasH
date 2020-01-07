@@ -77,7 +77,7 @@ void FluidVisPlugin::RenderAsPointsUpdate()
 	{
 		// render fluid particles
 		FluidVisPlugin::RenderParticlesAsEntities(this->fluidParticlePositions, "fluid1");
-		FluidVisPlugin::RenderParticles(this->rigidsParticlePositions, "rigid1");
+		FluidVisPlugin::RenderParticlesAsEntitiesBlue(this->rigidsParticlePositions, "rigid1");
 
 		//FluidVisPlugin::RenderParticles(this->rigidsParticlePositions, "rigid1");
 		//	FluidVisPlugin::RenderParticlesAsEntities(this->rigidsParticlePositions, "rigid1");
@@ -166,6 +166,20 @@ void FluidVisPlugin::RenderParticlesAsEntities(std::vector<Ogre::Vector3> &_part
 		std::ostringstream name_ss;
 		std::string name;
 
+		// #################################################
+/*
+		Ogre::MaterialPtr lMaterial = Ogre::MaterialManager::getSingleton().create("MYMaterial", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
+		Ogre::Technique* lFirstTechnique = lMaterial->getTechnique(0);
+		Ogre::Pass* lFirstPass = lFirstTechnique->getPass(0);
+
+		lFirstPass->setDiffuse(0.1f, 0.1f, 0.1f, 0.1f);
+		lFirstPass->setAmbient(0.1f, 0.1f, 0.1f);
+		lFirstPass->setSpecular(0.1f, 0.1f, 0.1f, 0.1f);
+		lFirstPass->setShininess(64.0f);
+		lFirstPass->setSelfIllumination(0.1f, 0.1f, 0.1f);
+*/
+		// #################################################
+
 		name_ss << _name << "_" << i;
 		name = name_ss.str();
 
@@ -181,6 +195,50 @@ void FluidVisPlugin::RenderParticlesAsEntities(std::vector<Ogre::Vector3> &_part
 			entity = this->manager->createEntity(name,
 												 Ogre::SceneManager::PT_SPHERE);
 			entity->setMaterialName("Gazebo/Red");
+		}
+
+		sceneNode->setVisible(true);
+		entity->setVisible(true);
+		//entity->setMaterialName("MYMaterial");
+
+		double radius = 0.002;
+		sceneNode->setScale(0.01*radius, 0.01*radius, 0.01*radius);
+
+		sceneNode->setPosition(_particles[i]);
+
+		if (!attached)
+		{
+			sceneNode->attachObject(entity);
+		}
+	}
+}
+
+void FluidVisPlugin::RenderParticlesAsEntitiesBlue(std::vector<Ogre::Vector3> &_particles, std::string _name)
+{
+	//std::cout << "OnUpdate: Rendering new positions.." << std::endl;
+	for (unsigned int i = 0; i < _particles.size(); ++i)
+	{
+		Ogre::SceneNode *sceneNode = NULL;
+		Ogre::Entity *entity = NULL;
+		bool attached = false;
+		std::ostringstream name_ss;
+		std::string name;
+
+		name_ss << _name << "_" << i;
+		name = name_ss.str();
+
+		if (this->manager->hasEntity(name))
+		{
+			sceneNode = this->manager->getSceneNode(name);
+			entity = this->manager->getEntity(name);
+			attached = true;
+		}
+		else
+		{
+			sceneNode = this->manager->getRootSceneNode()->createChildSceneNode(name);
+			entity = this->manager->createEntity(name,
+												 Ogre::SceneManager::PT_SPHERE);
+			entity->setMaterialName("Gazebo/Blue");
 		}
 
 		sceneNode->setVisible(true);
