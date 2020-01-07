@@ -172,7 +172,7 @@ void GazeboSceneLoader::processBoundary(Scene &scene, const gazebo::physics::Col
 		data->dynamic = !collision->GetModel()->GetSDF()->Get<bool>("static");
 	}
 	data->collisionName = collision->GetModel()->GetSDF()->GetAttribute("name")->GetAsString() + "_" + collision->GetName() + ".obj";
-	gazebo::math::Pose collisionPose = collision->GetLink()->GetWorldPose();
+	ignition::math::Pose3d collisionPose = collision->GetLink()->WorldPose();
 	/* if (collisionElement->HasElement("pose"))
 		collisionPose = collisionElement->GetElement("pose")->Get<gazebo::math::Pose>();
 	 */
@@ -180,16 +180,16 @@ void GazeboSceneLoader::processBoundary(Scene &scene, const gazebo::physics::Col
 	data->scale = Vector3r::Ones();
 
 	// translation
-	gazebo::math::Vector3 translation = collisionPose.pos;
-	Vector3r fluidObjectTranslation = Vector3r(translation.x, translation.y, translation.z);
+	ignition::math::Vector3d translation = collisionPose.Pos();
+	Vector3r fluidObjectTranslation = Vector3r(translation.X(), translation.Y(), translation.Z());
 	data->translation = fluidObjectTranslation;
 
 	// set the orientation of the geom as float4
-	gazebo::math::Matrix3 orientation = collisionPose.rot.GetAsMatrix3();
+	ignition::math::Matrix3d orientation = ignition::math::Matrix3d(collisionPose.Rot());
 	Matrix3r fluidObjectOrientation;
-	fluidObjectOrientation << orientation[0][0], orientation[0][1], orientation[0][2],
-		orientation[1][0], orientation[1][1], orientation[1][2],
-		orientation[2][0], orientation[2][1], orientation[2][2];
+	fluidObjectOrientation << orientation(0,0), orientation(0,1), orientation(0,2),
+		orientation(1,0), orientation(1,1), orientation(1,2),
+		orientation(2,0), orientation(2,1), orientation(2,2);
 	data->rotation = fluidObjectOrientation;
 	data->rigidBody = collision;
 	scene.boundaryModels.push_back(data);
@@ -221,7 +221,7 @@ void GazeboSceneLoader::processBoundary(Scene &scene, const gazebo::physics::Col
 							data->scale = Vector3r::Ones();
 
 							// translation
-							gazebo::math::Vector3 translation = collisionPose.pos;
+							ignition::math::Vector3d translation = collisionPose.pos;
 							Vector3r fluidObjectTranslation = Vector3r(translation.x, translation.y, translation.z);
 							data->translation = fluidObjectTranslation;
 

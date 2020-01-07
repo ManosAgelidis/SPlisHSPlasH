@@ -47,8 +47,8 @@ public:
 	void init(const sdf::ElementPtr &fluidSdf);
 	void buildModel();
 	void cleanup();
-	void initDensityMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool isDynamic, BoundaryModel_Koschier2017 *boundaryModel);
-	void initVolumeMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool isDynamic, BoundaryModel_Bender2019 *boundaryModel);
+	void initDensityMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::GazeboSceneLoader::GazeboBoundaryData *boundaryData, const bool md5, const bool isDynamic, BoundaryModel_Koschier2017 *boundaryModel);
+	void initVolumeMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::GazeboSceneLoader::GazeboBoundaryData *boundaryData, const bool md5, const bool isDynamic, BoundaryModel_Bender2019 *boundaryModel);
 	void reset();
 	void updateBoundaryParticles(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr> &boundariesToCollisions, const bool forceUpdate);
 	void updateDMVelocity();

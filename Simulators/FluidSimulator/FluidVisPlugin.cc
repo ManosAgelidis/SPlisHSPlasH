@@ -186,7 +186,9 @@ void FluidVisPlugin::RenderParticlesAsEntities(std::vector<Ogre::Vector3> &_part
 		sceneNode->setVisible(true);
 		entity->setVisible(true);
 
-		sceneNode->setScale(0.0001, 0.0001, 0.0001);
+		double particleSize = 0.0035;
+
+		sceneNode->setScale(0.01*particleSize, 0.01*particleSize, 0.01*particleSize);
 
 		sceneNode->setPosition(_particles[i]);
 

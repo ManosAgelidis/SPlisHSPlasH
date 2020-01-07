@@ -48,7 +48,7 @@ public:
     void setWorldSpacePosition(const Vector3r &x)
     {
         if (model->GetLinks().size())
-            model->SetLinkWorldPose(gazebo::math::Pose(gazebo::math::Vector3(x[0], x[1], x[2]),model->GetLinks()[0]->G, model->GetLinks()[0]);
+            model->SetLinkWorldPose(ignition::math::Pose3d(ignition::math::Vector3d(x[0], x[1], x[2]),model->GetLinks()[0]->G, model->GetLinks()[0]);
     }
     void setWorldSpaceRotation(const Matrix3r &r) { m_R_world = r; }
     TriangleMesh &getGeometry() { return m_geometry; }

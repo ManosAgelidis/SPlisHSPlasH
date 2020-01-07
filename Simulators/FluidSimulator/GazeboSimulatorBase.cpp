@@ -374,23 +374,23 @@ void GazeboSimulatorBase::updateBoundaryParticles(const std::map<SPH::StaticRigi
 				physics::LinkPtr gazeboBodyLink = currentRigidBody->GetLink();
 
 				// Position of rigid body
-				math::Pose gazeboRigidBodyPose = gazeboBodyLink->GetWorldPose();
-				Vector3r fluidObjectPosition = Vector3r(gazeboRigidBodyPose.pos.x, gazeboRigidBodyPose.pos.y, gazeboRigidBodyPose.pos.z);
+				ignition::math::Pose3d gazeboRigidBodyPose = gazeboBodyLink->WorldPose();
+				Vector3r fluidObjectPosition = Vector3r(gazeboRigidBodyPose.Pos().X(), gazeboRigidBodyPose.Pos().Y(), gazeboRigidBodyPose.Pos().Z());
 
 				// Rotation of rigid body
-				auto rigidBodyRotation = gazeboRigidBodyPose.rot.GetAsMatrix3();
+				ignition::math::Matrix3d rigidBodyRotation = ignition::math::Matrix3d(gazeboRigidBodyPose.Rot());
 				Matrix3r fluidObjectRotation;
-				fluidObjectRotation << rigidBodyRotation[0][0], rigidBodyRotation[0][1], rigidBodyRotation[0][2],
-					rigidBodyRotation[1][0], rigidBodyRotation[1][1], rigidBodyRotation[1][2],
-					rigidBodyRotation[2][0], rigidBodyRotation[2][1], rigidBodyRotation[2][2];
+				fluidObjectRotation << rigidBodyRotation(0, 0), rigidBodyRotation(0, 1), rigidBodyRotation(0, 2),
+					rigidBodyRotation(1, 0), rigidBodyRotation(1, 1), rigidBodyRotation(1, 2),
+					rigidBodyRotation(2, 0), rigidBodyRotation(2, 1), rigidBodyRotation(2, 2);
 
 				// Linear velocity of rigid body
-				math::Vector3 linearVelocityGazebo = gazeboBodyLink->GetWorldLinearVel();
-				Vector3r fluidObjectLinearVel = Vector3r(linearVelocityGazebo.x, linearVelocityGazebo.y, linearVelocityGazebo.z);
+				ignition::math::Vector3d linearVelocityGazebo = gazeboBodyLink->WorldLinearVel();
+				Vector3r fluidObjectLinearVel = Vector3r(linearVelocityGazebo.X(), linearVelocityGazebo.Y(), linearVelocityGazebo.Z());
 
 				// Angular velocity of rigid body
-				math::Vector3 angularVelocityGazebo = gazeboBodyLink->GetWorldAngularVel();
-				Vector3r fluidObjectAngularVel = Vector3r(angularVelocityGazebo.x, angularVelocityGazebo.y, angularVelocityGazebo.z);
+				ignition::math::Vector3d angularVelocityGazebo = gazeboBodyLink->WorldAngularVel();
+				Vector3r fluidObjectAngularVel = Vector3r(angularVelocityGazebo.X(), angularVelocityGazebo.Y(), angularVelocityGazebo.Z());
 
 				for (int j = 0; j < (int)bm->numberOfParticles(); j++)
 				{
@@ -412,40 +412,63 @@ void GazeboSimulatorBase::updateBoundaryParticles(const std::map<SPH::StaticRigi
 
 void SPH::GazeboSimulatorBase::updateDMVelocity()
 {
-	/* Simulation *sim = Simulation::getCurrent();
+	Simulation *sim = Simulation::getCurrent();
 	GazeboSceneLoader::Scene &scene = getScene();
 	const unsigned int nObjects = sim->numberOfBoundaryModels();
 	for (unsigned int i = 0; i < nObjects; i++)
 	{
 		BoundaryModel_Koschier2017 *bm = static_cast<BoundaryModel_Koschier2017 *>(sim->getBoundaryModel(i));
-		RigidBodyObject *rbo = bm->getRigidBodyObject();
+		StaticRigidBody *rbo = dynamic_cast<StaticRigidBody *>(bm->getRigidBodyObject());
 		if (rbo->isDynamic())
 		{
+
+			physics::CollisionPtr currentRigidBody = scene.boundaryModels[i]->rigidBody;
+			physics::LinkPtr gazeboBodyLink = currentRigidBody->GetLink();
+
+			// Linear velocity of rigid body
+			ignition::math::Vector3d linearVelocityGazebo = gazeboBodyLink->WorldLinearVel();
+			Vector3r fluidObjectLinearVel = Vector3r(linearVelocityGazebo.X(), linearVelocityGazebo.Y(), linearVelocityGazebo.Z());
+
+			// Angular velocity of rigid body
+			ignition::math::Vector3d angularVelocityGazebo = gazeboBodyLink->WorldAngularVel();
+			Vector3r fluidObjectAngularVel = Vector3r(angularVelocityGazebo.X(), angularVelocityGazebo.Y(), angularVelocityGazebo.Z());
+
 			const Real maxDist = bm->getMaxDist();
 			const Vector3r x(maxDist, 0.0, 0.0);
-			const Vector3r vel = rbo->getAngularVelocity().cross(x) + rbo->getVelocity();
+			const Vector3r vel = fluidObjectAngularVel.cross(x) + fluidObjectLinearVel;
 			bm->setMaxVel(vel.norm());
 		}
-	} */
+	}
 }
 
 void SPH::GazeboSimulatorBase::updateVMVelocity()
 {
-	/* Simulation *sim = Simulation::getCurrent();
+	Simulation *sim = Simulation::getCurrent();
 	GazeboSceneLoader::Scene &scene = getScene();
 	const unsigned int nObjects = sim->numberOfBoundaryModels();
 	for (unsigned int i = 0; i < nObjects; i++)
 	{
 		BoundaryModel_Bender2019 *bm = static_cast<BoundaryModel_Bender2019 *>(sim->getBoundaryModel(i));
-		RigidBodyObject *rbo = bm->getRigidBodyObject();
+		StaticRigidBody *rbo = dynamic_cast<StaticRigidBody *>(bm->getRigidBodyObject());
 		if (rbo->isDynamic())
 		{
+			physics::CollisionPtr currentRigidBody = scene.boundaryModels[i]->rigidBody;
+			physics::LinkPtr gazeboBodyLink = currentRigidBody->GetLink();
+
+			// Linear velocity of rigid body
+			ignition::math::Vector3d linearVelocityGazebo = gazeboBodyLink->WorldLinearVel();
+			Vector3r fluidObjectLinearVel = Vector3r(linearVelocityGazebo.X(), linearVelocityGazebo.Y(), linearVelocityGazebo.Z());
+
+			// Angular velocity of rigid body
+			ignition::math::Vector3d angularVelocityGazebo = gazeboBodyLink->WorldAngularVel();
+			Vector3r fluidObjectAngularVel = Vector3r(angularVelocityGazebo.X(), angularVelocityGazebo.Y(), angularVelocityGazebo.Z());
+
 			const Real maxDist = bm->getMaxDist();
 			const Vector3r x(maxDist, 0.0, 0.0);
-			const Vector3r vel = rbo->getAngularVelocity().cross(x) + rbo->getVelocity();
+			const Vector3r vel = fluidObjectAngularVel.cross(x) + fluidObjectLinearVel;
 			bm->setMaxVel(vel.norm());
 		}
-	} */
+	}
 }
 
 void GazeboSimulatorBase::updateBoundaryForces(const std::map<SPH::StaticRigidBody *, physics::CollisionPtr> &boundariesToCollisions)
@@ -461,12 +484,12 @@ void GazeboSimulatorBase::updateBoundaryForces(const std::map<SPH::StaticRigidBo
 		if (rbo->isDynamic())
 		{
 			gazebo::physics::CollisionPtr gazeboRigidBody = scene.boundaryModels[i]->rigidBody;
-			
+
 			Vector3r force, torque;
 			// change rigid body fluid position?
 			bm->getForceAndTorque(force, torque);
-			const math::Vector3 gazeboForce = math::Vector3(force[0], force[1], force[2]);
-			const math::Vector3 gazeboTorque = math::Vector3(torque[0], torque[1], torque[2]);
+			const ignition::math::Vector3d gazeboForce = ignition::math::Vector3d(force[0], force[1], force[2]);
+			const ignition::math::Vector3d gazeboTorque = ignition::math::Vector3d(torque[0], torque[1], torque[2]);
 			gazeboRigidBody->GetLink()->AddForce(gazeboForce);
 			gazeboRigidBody->GetLink()->AddTorque(gazeboTorque);
 			bm->clearForceAndTorque();
@@ -482,367 +505,225 @@ std::string GazeboSimulatorBase::real2String(const Real r)
 	return str;
 }
 
-void GazeboSimulatorBase::initDensityMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool isDynamic, BoundaryModel_Koschier2017 *boundaryModel)
-{ /*
-	 Simulation *sim = Simulation::getCurrent();
-	const Real supportRadius = sim->getSupportRadius();
-	std::string scene_path = FileSystem::getFilePath(getSceneFile());
-	std::string scene_file_name = FileSystem::getFileName(getSceneFile());
-	GazeboSceneLoader::Scene &scene = getScene();
-	const bool useCache = getUseParticleCaching();
-	Discregrid::CubicLagrangeDiscreteGrid *densityMap;
-
-	// if a map file is given, use this one
-	if (boundaryData->mapFile != "")
-	{
-		std::string mapFileName = boundaryData->mapFile;
-		if (FileSystem::isRelativePath(mapFileName))
-			mapFileName = FileSystem::normalizePath(scene_path + "/" + mapFileName);
-		densityMap = new Discregrid::CubicLagrangeDiscreteGrid(mapFileName);
-		boundaryModel->setMap(densityMap);
-		LOG_INFO << "Loaded density map: " << mapFileName;
-		return;
-	}
-
-	string cachePath = scene_path + "/Cache";
-
-	// Cache map
-	std::string mesh_base_path = FileSystem::getFilePath(boundaryData->meshFile);
-	std::string mesh_file_name = FileSystem::getFileName(boundaryData->meshFile);
-
-	Eigen::Matrix<unsigned int, 3, 1> resolutionSDF = boundaryData->mapResolution;
-	const string scaleStr = "s" + real2String(boundaryData->scale[0]) + "_" + real2String(boundaryData->scale[1]) + "_" + real2String(boundaryData->scale[2]);
-	const string resStr = "r" + real2String(resolutionSDF[0]) + "_" + real2String(resolutionSDF[1]) + "_" + real2String(resolutionSDF[2]);
-	const string invertStr = "i" + to_string((int)boundaryData->mapInvert);
-	const string thicknessStr = "t" + real2String(boundaryData->mapThickness);
-	string densityMapFileName = "";
-	if (isDynamic)
-		densityMapFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_db_dm_" + real2String(scene.particleRadius) + "_" + scaleStr + "_" + resStr + "_" + invertStr + "_" + thicknessStr + ".cdm");
-	else
-		densityMapFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_sb_dm_" + real2String(scene.particleRadius) + "_" + scaleStr + "_" + resStr + "_" + invertStr + "_" + thicknessStr + ".cdm");
-
-	// check MD5 if cache file is available
-	bool foundCacheFile = false;
-
-	if (useCache)
-		foundCacheFile = FileSystem::fileExists(densityMapFileName);
-
-	if (useCache && foundCacheFile && md5)
-	{
-		densityMap = new Discregrid::CubicLagrangeDiscreteGrid(densityMapFileName);
-		boundaryModel->setMap(densityMap);
-		LOG_INFO << "Loaded cached density map: " << densityMapFileName;
-		return;
-	}
-
-	if (!useCache || !foundCacheFile || !md5)
-	{
-		//////////////////////////////////////////////////////////////////////////
-		// Generate distance field of object using Discregrid
-		//////////////////////////////////////////////////////////////////////////
-#ifdef USE_DOUBLE
-		Discregrid::TriangleMesh sdfMesh(&x[0][0], faces.data(), x.size(), faces.size() / 3);
-#else
-		// if type is float, copy vector to double vector
-		std::vector<double> doubleVec;
-		doubleVec.resize(3 * x.size());
-		for (unsigned int i = 0; i < x.size(); i++)
-			for (unsigned int j = 0; j < 3; j++)
-				doubleVec[3 * i + j] = x[i][j];
-		Discregrid::TriangleMesh sdfMesh(&doubleVec[0], faces.data(), x.size(), faces.size() / 3);
-#endif
-
-		Discregrid::MeshDistance md(sdfMesh);
-		Eigen::AlignedBox3d domain;
-		for (auto const &x_ : x)
-		{
-			domain.extend(x_.cast<double>());
-		}
-		const Real tolerance = boundaryData->mapThickness;
-		domain.max() += (4.0 * supportRadius + tolerance) * Eigen::Vector3d::Ones();
-		domain.min() -= (4.0 * supportRadius + tolerance) * Eigen::Vector3d::Ones();
-
-		LOG_INFO << "Domain - min: " << domain.min()[0] << ", " << domain.min()[1] << ", " << domain.min()[2];
-		LOG_INFO << "Domain - max: " << domain.max()[0] << ", " << domain.max()[1] << ", " << domain.max()[2];
-
-		LOG_INFO << "Set SDF resolution: " << resolutionSDF[0] << ", " << resolutionSDF[1] << ", " << resolutionSDF[2];
-		densityMap = new Discregrid::CubicLagrangeDiscreteGrid(domain, std::array<unsigned int, 3>({resolutionSDF[0], resolutionSDF[1], resolutionSDF[2]}));
-		auto func = Discregrid::DiscreteGrid::ContinuousFunction{};
-
-		Real sign = 1.0;
-		if (boundaryData->mapInvert)
-			sign = -1.0;
-		func = [&md, &sign, &tolerance](Eigen::Vector3d const &xi) { return sign * (md.signedDistanceCached(xi) - tolerance); };
-
-		LOG_INFO << "Generate SDF";
-		START_TIMING("SDF Construction");
-		densityMap->addFunction(func, false);
-		STOP_TIMING_AVG
-
-		const bool sim2D = sim->is2DSimulation();
-
-		//////////////////////////////////////////////////////////////////////////
-		// Generate density map of object using Discregrid
-		//////////////////////////////////////////////////////////////////////////
-		if (sim2D)
-			SimpleQuadrature::determineSamplePointsInCircle(supportRadius, 30);
-
-		auto int_domain = Eigen::AlignedBox3d(Eigen::Vector3d::Constant(-supportRadius), Eigen::Vector3d::Constant(supportRadius));
-		Real factor = 5.0;
-		if (sim2D)
-			factor = 1.75;
-		auto density_func = [&](Eigen::Vector3d const &x) {
-			auto d = densityMap->interpolate(0u, x);
-			if (d > (1.0 + 1.0 / factor) * supportRadius)
-			{
-				return 0.0;
-			}
-
-			auto integrand = [&](Eigen::Vector3d const &xi) {
-				if (xi.squaredNorm() > supportRadius * supportRadius)
-					return 0.0;
-
-				auto dist = densityMap->interpolate(0u, x + xi);
-
-				// Linear function gamma
-				if (dist > 1.0 / factor * supportRadius)
-					return 0.0;
-				return static_cast<double>((1.0 - factor * dist / supportRadius) * sim->W(xi.cast<Real>()));
-			};
-
-			double res = 0.0;
-			if (sim2D)
-				res = 0.8 * SimpleQuadrature::integrate(integrand);
-			else
-				res = 0.8 * GaussQuadrature::integrate(integrand, int_domain, 50);
-
-			return res;
-		};
-
-		auto cell_diag = densityMap->cellSize().norm();
-		std::cout << "Generate density map..." << std::endl;
-		const bool no_reduction = true;
-		START_TIMING("Density Map Construction");
-		densityMap->addFunction(density_func, false, [&](Eigen::Vector3d const &x_) {
-			if (no_reduction)
-			{
-				return true;
-			}
-			auto x = x_.cwiseMax(densityMap->domain().min()).cwiseMin(densityMap->domain().max());
-			auto dist = densityMap->interpolate(0u, x);
-			if (dist == std::numeric_limits<double>::max())
-			{
-				return false;
-			}
-
-			return -6.0 * supportRadius < dist + cell_diag && dist - cell_diag < 2.0 * supportRadius;
-		});
-		STOP_TIMING_PRINT;
-
-		// reduction
-		if (!no_reduction)
-		{
-			std::cout << "Reduce discrete fields...";
-			densityMap->reduceField(0u, [&](Eigen::Vector3d const &, double v) -> double {
-				return 0.0 <= v && v <= 3.0;
-			});
-			std::cout << "DONE" << std::endl;
-		}
-
-		boundaryModel->setMap(densityMap);
-
-		// Store cache file
-		if (useCache && (FileSystem::makeDir(cachePath) == 0))
-		{
-			LOG_INFO << "Save density map: " << densityMapFileName;
-			densityMap->save(densityMapFileName);
-		}
-	}*/
-}
-
-void GazeboSimulatorBase::initVolumeMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool isDynamic, BoundaryModel_Bender2019 *boundaryModel)
-{ /*
+void GazeboSimulatorBase::initDensityMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::GazeboSceneLoader::GazeboBoundaryData *boundaryData, const bool md5, const bool isDynamic, BoundaryModel_Koschier2017 *boundaryModel)
+{
 	Simulation *sim = Simulation::getCurrent();
 	const Real supportRadius = sim->getSupportRadius();
-	std::string scene_path = FileSystem::getFilePath(getSceneFile());
-	std::string scene_file_name = FileSystem::getFileName(getSceneFile());
 	GazeboSceneLoader::Scene &scene = getScene();
-	const bool useCache = getUseParticleCaching();
-	Discregrid::CubicLagrangeDiscreteGrid *volumeMap;
-
-	// if a map file is given, use this one
-	if (boundaryData->mapFile != "")
-	{
-		std::string mapFileName = boundaryData->mapFile;
-		if (FileSystem::isRelativePath(mapFileName))
-			mapFileName = FileSystem::normalizePath(scene_path + "/" + mapFileName);
-		volumeMap = new Discregrid::CubicLagrangeDiscreteGrid(mapFileName);
-		boundaryModel->setMap(volumeMap);
-		LOG_INFO << "Loaded volume map: " << mapFileName;
-		return;
-	}
-
-	string cachePath = scene_path + "/Cache";
-
-	// Cache map
-	std::string mesh_base_path = FileSystem::getFilePath(boundaryData->meshFile);
-	std::string mesh_file_name = FileSystem::getFileName(boundaryData->meshFile);
-
+	Discregrid::CubicLagrangeDiscreteGrid *densityMap;
 	Eigen::Matrix<unsigned int, 3, 1> resolutionSDF = boundaryData->mapResolution;
-	const string scaleStr = "s" + real2String(boundaryData->scale[0]) + "_" + real2String(boundaryData->scale[1]) + "_" + real2String(boundaryData->scale[2]);
-	const string resStr = "r" + real2String(resolutionSDF[0]) + "_" + real2String(resolutionSDF[1]) + "_" + real2String(resolutionSDF[2]);
-	const string invertStr = "i" + to_string((int)boundaryData->mapInvert);
-	const string thicknessStr = "t" + real2String(boundaryData->mapThickness);
-	const string kernelStr = "k" + to_string(sim->getKernel());
-	string volumeMapFileName = "";
-	if (isDynamic)
-		volumeMapFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_db_vm_" + real2String(scene.particleRadius) + "_" + scaleStr + "_" + resStr + "_" + invertStr + "_" + thicknessStr + "_" + kernelStr + ".cdm");
-	else
-		volumeMapFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_sb_vm_" + real2String(scene.particleRadius) + "_" + scaleStr + "_" + resStr + "_" + invertStr + "_" + thicknessStr + "_" + kernelStr + ".cdm");
 
-	// check MD5 if cache file is available
-	bool foundCacheFile = false;
-
-	if (useCache)
-		foundCacheFile = FileSystem::fileExists(volumeMapFileName);
-
-	if (useCache && foundCacheFile && md5)
-	{
-		volumeMap = new Discregrid::CubicLagrangeDiscreteGrid(volumeMapFileName);
-		boundaryModel->setMap(volumeMap);
-		LOG_INFO << "Loaded cached volume map: " << volumeMapFileName;
-		return;
-	}
-
-	if (!useCache || !foundCacheFile || !md5)
-	{
-		//////////////////////////////////////////////////////////////////////////
-		// Generate distance field of object using Discregrid
-		//////////////////////////////////////////////////////////////////////////
 #ifdef USE_DOUBLE
-		Discregrid::TriangleMesh sdfMesh(&x[0][0], faces.data(), x.size(), faces.size() / 3);
+	Discregrid::TriangleMesh sdfMesh(&x[0][0], faces.data(), x.size(), faces.size() / 3);
 #else
-		// if type is float, copy vector to double vector
-		std::vector<double> doubleVec;
-		doubleVec.resize(3 * x.size());
-		for (unsigned int i = 0; i < x.size(); i++)
-			for (unsigned int j = 0; j < 3; j++)
-				doubleVec[3 * i + j] = x[i][j];
-		Discregrid::TriangleMesh sdfMesh(&doubleVec[0], faces.data(), x.size(), faces.size() / 3);
-#endif 
+	// if type is float, copy vector to double vector
+	std::vector<double> doubleVec;
+	doubleVec.resize(3 * x.size());
+	for (unsigned int i = 0; i < x.size(); i++)
+		for (unsigned int j = 0; j < 3; j++)
+			doubleVec[3 * i + j] = x[i][j];
+	Discregrid::TriangleMesh sdfMesh(&doubleVec[0], faces.data(), x.size(), faces.size() / 3);
+#endif
 
-		Discregrid::MeshDistance md(sdfMesh);
-		Eigen::AlignedBox3d domain;
-		for (auto const &x_ : x)
+	Discregrid::MeshDistance md(sdfMesh);
+	Eigen::AlignedBox3d domain;
+	for (auto const &x_ : x)
+	{
+		domain.extend(x_.cast<double>());
+	}
+	const Real tolerance = boundaryData->mapThickness;
+	domain.max() += (4.0 * supportRadius + tolerance) * Eigen::Vector3d::Ones();
+	domain.min() -= (4.0 * supportRadius + tolerance) * Eigen::Vector3d::Ones();
+
+	LOG_INFO << "Domain - min: " << domain.min()[0] << ", " << domain.min()[1] << ", " << domain.min()[2];
+	LOG_INFO << "Domain - max: " << domain.max()[0] << ", " << domain.max()[1] << ", " << domain.max()[2];
+
+	LOG_INFO << "Set SDF resolution: " << resolutionSDF[0] << ", " << resolutionSDF[1] << ", " << resolutionSDF[2];
+	densityMap = new Discregrid::CubicLagrangeDiscreteGrid(domain, std::array<unsigned int, 3>({resolutionSDF[0], resolutionSDF[1], resolutionSDF[2]}));
+	auto func = Discregrid::DiscreteGrid::ContinuousFunction{};
+
+	Real sign = 1.0;
+	if (boundaryData->mapInvert)
+		sign = -1.0;
+	func = [&md, &sign, &tolerance](Eigen::Vector3d const &xi) { return sign * (md.signedDistanceCached(xi) - tolerance); };
+
+	LOG_INFO << "Generate SDF";
+	START_TIMING("SDF Construction");
+	densityMap->addFunction(func, false);
+	STOP_TIMING_AVG
+
+	auto int_domain = Eigen::AlignedBox3d(Eigen::Vector3d::Constant(-supportRadius), Eigen::Vector3d::Constant(supportRadius));
+	Real factor = 5.0;
+	auto density_func = [&](Eigen::Vector3d const &x) {
+		auto d = densityMap->interpolate(0u, x);
+		if (d > (1.0 + 1.0 / factor) * supportRadius)
 		{
-			domain.extend(x_.cast<double>());
+			return 0.0;
 		}
-		const Real tolerance = boundaryData->mapThickness;
-		domain.max() += (4.0 * supportRadius + tolerance) * Eigen::Vector3d::Ones();
-		domain.min() -= (4.0 * supportRadius + tolerance) * Eigen::Vector3d::Ones();
 
-		LOG_INFO << "Domain - min: " << domain.min()[0] << ", " << domain.min()[1] << ", " << domain.min()[2];
-		LOG_INFO << "Domain - max: " << domain.max()[0] << ", " << domain.max()[1] << ", " << domain.max()[2];
-
-		LOG_INFO << "Set SDF resolution: " << resolutionSDF[0] << ", " << resolutionSDF[1] << ", " << resolutionSDF[2];
-		volumeMap = new Discregrid::CubicLagrangeDiscreteGrid(domain, std::array<unsigned int, 3>({resolutionSDF[0], resolutionSDF[1], resolutionSDF[2]}));
-		auto func = Discregrid::DiscreteGrid::ContinuousFunction{};
-
-		//volumeMap->setErrorTolerance(0.001);
-
-		Real sign = 1.0;
-		if (boundaryData->mapInvert)
-			sign = -1.0;
-		const Real particleRadius = sim->getParticleRadius();
-		// subtract 0.5 * particle radius to prevent penetration of particles and the boundary
-		func = [&md, &sign, &tolerance, &particleRadius](Eigen::Vector3d const &xi) { return sign * (md.signedDistanceCached(xi) - tolerance - 0.5 * particleRadius); };
-
-		LOG_INFO << "Generate SDF";
-		START_TIMING("SDF Construction");
-		volumeMap->addFunction(func, false);
-		STOP_TIMING_PRINT
-
-		//////////////////////////////////////////////////////////////////////////
-		// Generate volume map of object using Discregrid
-		//////////////////////////////////////////////////////////////////////////
-
-		Simulation *sim = Simulation::getCurrent();
-		const bool sim2D = sim->is2DSimulation();
-
-		if (sim2D)
-			SimpleQuadrature::determineSamplePointsInCircle(supportRadius, 30);
-		auto int_domain = Eigen::AlignedBox3d(Eigen::Vector3d::Constant(-supportRadius), Eigen::Vector3d::Constant(supportRadius));
-		Real factor = 1.0;
-		if (sim2D)
-			factor = 1.75;
-		auto volume_func = [&](Eigen::Vector3d const &x) {
-			auto dist = volumeMap->interpolate(0u, x);
-			if (dist > (1.0 + 1.0 /factor) * supportRadius)
-			{
+		auto integrand = [&](Eigen::Vector3d const &xi) {
+			if (xi.squaredNorm() > supportRadius * supportRadius)
 				return 0.0;
-			}
 
-			auto integrand = [&volumeMap, &x, &supportRadius, &factor, &sim, &sim2D](Eigen::Vector3d const &xi) -> double {
-				if (xi.squaredNorm() > supportRadius * supportRadius)
-					return 0.0;
+			auto dist = densityMap->interpolate(0u, x + xi);
 
-				auto dist = volumeMap->interpolate(0u, x + xi);
-
-				if (dist <= 0.0)
-					return 1.0 - 0.1 * dist / supportRadius;
-				if (dist < 1.0 / factor * supportRadius)
-					return static_cast<double>(CubicKernel::W(factor * static_cast<Real>(dist)) / CubicKernel::W_zero());
+			// Linear function gamma
+			if (dist > 1.0 / factor * supportRadius)
 				return 0.0;
-			};
-
-			double res = 0.0;
-			if (sim2D)
-				res = 0.8 * SimpleQuadrature::integrate(integrand);
-			else
-				res = 0.8 * GaussQuadrature::integrate(integrand, int_domain, 30);
-
-			return res;
+			return static_cast<double>((1.0 - factor * dist / supportRadius) * sim->W(xi.cast<Real>()));
 		};
 
-		auto cell_diag = volumeMap->cellSize().norm();
-		std::cout << "Generate volume map..." << std::endl;
-		const bool no_reduction = true;
-		START_TIMING("Volume Map Construction");
-		volumeMap->addFunction(volume_func, false, [&](Eigen::Vector3d const &x_) {
-			if (no_reduction)
-			{
-				return true;
-			}
-			auto x = x_.cwiseMax(volumeMap->domain().min()).cwiseMin(volumeMap->domain().max());
-			auto dist = volumeMap->interpolate(0u, x);
-			if (dist == std::numeric_limits<double>::max())
-			{
-				return false;
-			}
+		return 0.8 * GaussQuadrature::integrate(integrand, int_domain, 50);
+	};
 
-			return -6.0 * supportRadius < dist + cell_diag && dist - cell_diag < 2.0 * supportRadius;
+	auto cell_diag = densityMap->cellSize().norm();
+	std::cout << "Generate density map..." << std::endl;
+	const bool no_reduction = true;
+	START_TIMING("Density Map Construction");
+	densityMap->addFunction(density_func, false, [&](Eigen::Vector3d const &x_) {
+		if (no_reduction)
+		{
+			return true;
+		}
+		auto x = x_.cwiseMax(densityMap->domain().min()).cwiseMin(densityMap->domain().max());
+		auto dist = densityMap->interpolate(0u, x);
+		if (dist == std::numeric_limits<double>::max())
+		{
+			return false;
+		}
+
+		return -6.0 * supportRadius < dist + cell_diag && dist - cell_diag < 2.0 * supportRadius;
+	});
+	STOP_TIMING_PRINT;
+
+	// reduction
+	if (!no_reduction)
+	{
+		std::cout << "Reduce discrete fields...";
+		densityMap->reduceField(0u, [&](Eigen::Vector3d const &, double v) -> double {
+			return 0.0 <= v && v <= 3.0;
 		});
-		STOP_TIMING_PRINT;
-
-		// reduction
-		if (!no_reduction)
-		{
-			std::cout << "Reduce discrete fields...";
-			volumeMap->reduceField(0u, [&](Eigen::Vector3d const &, double v) -> double {
-				return 0.0 <= v && v <= 3.0;
-			});
-			std::cout << "DONE" << std::endl;
-		}
-
-		boundaryModel->setMap(volumeMap);
-
-		// Store cache file
-		if (useCache && (FileSystem::makeDir(cachePath) == 0))
-		{
-			LOG_INFO << "Save volume map: " << volumeMapFileName;
-			volumeMap->save(volumeMapFileName);
-		}
+		std::cout << "DONE" << std::endl;
 	}
+
+	boundaryModel->setMap(densityMap);
+}
+
+void GazeboSimulatorBase::initVolumeMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::GazeboSceneLoader::GazeboBoundaryData *boundaryData, const bool md5, const bool isDynamic, BoundaryModel_Bender2019 *boundaryModel)
+{
+	Simulation *sim = Simulation::getCurrent();
+	const Real supportRadius = sim->getSupportRadius();
+	GazeboSceneLoader::Scene &scene = getScene();
+	Discregrid::CubicLagrangeDiscreteGrid *volumeMap;
+
+	Eigen::Matrix<unsigned int, 3, 1> resolutionSDF = boundaryData->mapResolution;
+
+	//////////////////////////////////////////////////////////////////////////
+	// Generate distance field of object using Discregrid
+	//////////////////////////////////////////////////////////////////////////
+#ifdef USE_DOUBLE
+	Discregrid::TriangleMesh sdfMesh(&x[0][0], faces.data(), x.size(), faces.size() / 3);
+#else
+	// if type is float, copy vector to double vector
+	std::vector<double> doubleVec;
+	doubleVec.resize(3 * x.size());
+	for (unsigned int i = 0; i < x.size(); i++)
+		for (unsigned int j = 0; j < 3; j++)
+			doubleVec[3 * i + j] = x[i][j];
+	Discregrid::TriangleMesh sdfMesh(&doubleVec[0], faces.data(), x.size(), faces.size() / 3);
+#endif
+
+	Discregrid::MeshDistance md(sdfMesh);
+	Eigen::AlignedBox3d domain;
+	for (auto const &x_ : x)
+	{
+		domain.extend(x_.cast<double>());
+	}
+	const Real tolerance = boundaryData->mapThickness;
+	domain.max() += (4.0 * supportRadius + tolerance) * Eigen::Vector3d::Ones();
+	domain.min() -= (4.0 * supportRadius + tolerance) * Eigen::Vector3d::Ones();
+
+	LOG_INFO << "Domain - min: " << domain.min()[0] << ", " << domain.min()[1] << ", " << domain.min()[2];
+	LOG_INFO << "Domain - max: " << domain.max()[0] << ", " << domain.max()[1] << ", " << domain.max()[2];
+
+	LOG_INFO << "Set SDF resolution: " << resolutionSDF[0] << ", " << resolutionSDF[1] << ", " << resolutionSDF[2];
+	volumeMap = new Discregrid::CubicLagrangeDiscreteGrid(domain, std::array<unsigned int, 3>({resolutionSDF[0], resolutionSDF[1], resolutionSDF[2]}));
+	auto func = Discregrid::DiscreteGrid::ContinuousFunction{};
+
+	//volumeMap->setErrorTolerance(0.001);
+
+	Real sign = 1.0;
+	if (boundaryData->mapInvert)
+		sign = -1.0;
+	const Real particleRadius = sim->getParticleRadius();
+	// subtract 0.5 * particle radius to prevent penetration of particles and the boundary
+	func = [&md, &sign, &tolerance, &particleRadius](Eigen::Vector3d const &xi) { return sign * (md.signedDistanceCached(xi) - tolerance - 0.5 * particleRadius); };
+
+	LOG_INFO << "Generate SDF";
+	START_TIMING("SDF Construction");
+	volumeMap->addFunction(func, false);
+	STOP_TIMING_PRINT
+
+	//////////////////////////////////////////////////////////////////////////
+	// Generate volume map of object using Discregrid
+	//////////////////////////////////////////////////////////////////////////
+
+	auto int_domain = Eigen::AlignedBox3d(Eigen::Vector3d::Constant(-supportRadius), Eigen::Vector3d::Constant(supportRadius));
+	Real factor = 1.0;
+	auto volume_func = [&](Eigen::Vector3d const &x) {
+		auto dist = volumeMap->interpolate(0u, x);
+		if (dist > (1.0 + 1.0 / factor) * supportRadius)
+		{
+			return 0.0;
+		}
+
+		auto integrand = [&volumeMap, &x, &supportRadius, &factor, &sim](Eigen::Vector3d const &xi) -> double {
+			if (xi.squaredNorm() > supportRadius * supportRadius)
+				return 0.0;
+
+			auto dist = volumeMap->interpolate(0u, x + xi);
+
+			if (dist <= 0.0)
+				return 1.0 - 0.1 * dist / supportRadius;
+			if (dist < 1.0 / factor * supportRadius)
+				return static_cast<double>(CubicKernel::W(factor * static_cast<Real>(dist)) / CubicKernel::W_zero());
+			return 0.0;
+		};
+
+		return 0.8 * GaussQuadrature::integrate(integrand, int_domain, 30);
+	};
+
+	auto cell_diag = volumeMap->cellSize().norm();
+	std::cout << "Generate volume map..." << std::endl;
+	const bool no_reduction = true;
+	START_TIMING("Volume Map Construction");
+	volumeMap->addFunction(volume_func, false, [&](Eigen::Vector3d const &x_) {
+		if (no_reduction)
+		{
+			return true;
+		}
+		auto x = x_.cwiseMax(volumeMap->domain().min()).cwiseMin(volumeMap->domain().max());
+		auto dist = volumeMap->interpolate(0u, x);
+		if (dist == std::numeric_limits<double>::max())
+		{
+			return false;
+		}
+
+		return -6.0 * supportRadius < dist + cell_diag && dist - cell_diag < 2.0 * supportRadius;
+	});
+	STOP_TIMING_PRINT;
+
+	// reduction
+	if (!no_reduction)
+	{
+		std::cout << "Reduce discrete fields...";
+		volumeMap->reduceField(0u, [&](Eigen::Vector3d const &, double v) -> double {
+			return 0.0 <= v && v <= 3.0;
+		});
+		std::cout << "DONE" << std::endl;
+	}
+
+	boundaryModel->setMap(volumeMap);
 
 	// store maximal distance of a point to center of mass for CFL
 	if (boundaryData->dynamic)
@@ -868,5 +749,5 @@ void GazeboSimulatorBase::initVolumeMap(std::vector<Vector3r> &x, std::vector<un
 			}
 		}
 		boundaryModel->setMaxDist(maxDist);
-	}*/
+	}
 }

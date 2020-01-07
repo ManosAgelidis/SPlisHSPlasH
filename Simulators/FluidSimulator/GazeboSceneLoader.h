@@ -27,6 +27,10 @@ public:
 		Real density = 1000.0;
 		gazebo::physics::CollisionPtr rigidBody;
 		unsigned int samplingMode;
+
+		bool mapInvert;
+		Real mapThickness;
+		Eigen::Matrix<unsigned int, 3, 1, Eigen::DontAlign> mapResolution;
 	};
 
 	/** \brief Struct to store scene information */
@@ -54,7 +58,6 @@ private:
 	void processFluidModels(Scene &scene, const sdf::ElementPtr &sdf);
 	void processFluidBlocks(Scene &scene, const sdf::ElementPtr &sdf);
 	void processFluidEmmiters(Scene &scene, const sdf::ElementPtr &sdf);
-	
 };
 
 /* template <>
