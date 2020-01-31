@@ -83,6 +83,6 @@ private:
   transport::PublisherPtr rigidObjPub;
   unsigned int simulationSteps;
   std::map<SPH::StaticRigidBody *, physics::CollisionPtr> boundariesToCollisions;
-};
+ };
 } // namespace gazebo
 #endif

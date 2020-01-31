@@ -1,5 +1,5 @@
 include(${PROJECT_PATH}/Visualization/CMakeLists.txt)
 add_definitions(-DPBD_DATA_PATH="../data")
 
-subdirs(FluidSimulator) #DynamicBoundarySimulator StaticBoundarySimulator
+subdirs( GazeboFluidSimulator )  #GazeboRosFluidSimulator/src DynamicBoundarySimulator StaticBoundarySimulator
 

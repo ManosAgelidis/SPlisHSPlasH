@@ -2,7 +2,7 @@
 #define __GazeboSimulatorBase_h__
 
 #include "SPlisHSPlasH/Common.h"
-#include "../FluidSimulator/GazeboSceneLoader.h"
+#include "GazeboSceneLoader.h"
 #include "SPlisHSPlasH/TimeStep.h"
 #include "SPlisHSPlasH/FluidModel.h"
 #include "ParameterObject.h"

@@ -77,7 +77,7 @@ void FluidVisPlugin::RenderAsPointsUpdate()
 	{
 		// render fluid particles
 		FluidVisPlugin::RenderParticlesAsEntities(this->fluidParticlePositions, "fluid1");
-		FluidVisPlugin::RenderParticles(this->rigidsParticlePositions, "rigid1");
+		FluidVisPlugin::RenderParticlesAsEntities(this->rigidsParticlePositions, "rigid1");
 
 		//FluidVisPlugin::RenderParticles(this->rigidsParticlePositions, "rigid1");
 		//	FluidVisPlugin::RenderParticlesAsEntities(this->rigidsParticlePositions, "rigid1");
@@ -186,7 +186,7 @@ void FluidVisPlugin::RenderParticlesAsEntities(std::vector<Ogre::Vector3> &_part
 		sceneNode->setVisible(true);
 		entity->setVisible(true);
 
-		double particleSize = 0.0035;
+		double particleSize = 0.025;
 
 		sceneNode->setScale(0.01*particleSize, 0.01*particleSize, 0.01*particleSize);
 
