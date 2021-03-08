@@ -13,6 +13,13 @@
 #include "BoundaryModel_Bender2019.h"
 #include "BoundaryModel_Koschier2017.h"
 
+#include "SPlisHSPlasH/Viscosity/Viscosity_Standard.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_XSPH.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Bender2017.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Peer2015.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Peer2016.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Takahashi2015.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Weiler2018.h"
 
 
 using namespace SPH;
@@ -25,6 +32,7 @@ int Simulation::PARTICLE_RADIUS = -1;
 int Simulation::GRAVITATION = -1;
 int Simulation::CFL_METHOD = -1;
 int Simulation::CFL_FACTOR = -1;
+int Simulation::CFL_MIN_TIMESTEPSIZE = -1;
 int Simulation::CFL_MAX_TIMESTEPSIZE = -1;
 int Simulation::ENABLE_Z_SORT = -1;
 int Simulation::KERNEL_METHOD = -1;
@@ -61,10 +69,11 @@ int Simulation::ENUM_BENDER2019 = -1;
 
 Simulation::Simulation () 
 {
-	m_cflMethod = 1;
+	m_cflMethod = 0;
 	m_cflFactor = 0.5;
+	m_cflMinTimeStepSize = 0.0001;
 	m_cflMaxTimeStepSize = 0.005;
-	m_gravitation = Vector3r(0.0, -9.81, 0.0);
+	m_gravitation = Vector3r(0.0, 0.0,-9.81);
 
 	m_kernelMethod = -1;
 	m_gradKernelMethod = -1;
@@ -83,6 +92,9 @@ Simulation::Simulation ()
 
 Simulation::~Simulation () 
 {
+#ifdef USE_DEBUG_TOOLS
+	delete m_debugTools;
+#endif
 	delete m_animationFieldSystem;
 	delete m_timeStep;
 	delete m_neighborhoodSearch;
@@ -122,6 +134,8 @@ void Simulation::init(const Real particleRadius, const bool sim2D)
 {
 	m_sim2D = sim2D;
 	initParameters();
+
+	registerNonpressureForces();
 
 	// init kernel
 	setParticleRadius(particleRadius);
@@ -175,6 +189,11 @@ void Simulation::initParameters()
 	setGroup(CFL_FACTOR, "CFL");
 	setDescription(CFL_FACTOR, "Factor to scale the CFL time step size.");
 	static_cast<RealParameter*>(getParameter(CFL_FACTOR))->setMinValue(1e-6);
+
+	CFL_MIN_TIMESTEPSIZE = createNumericParameter("cflMinTimeStepSize", "CFL - min. time step size", &m_cflMinTimeStepSize);
+	setGroup(CFL_MIN_TIMESTEPSIZE, "CFL");
+	setDescription(CFL_MIN_TIMESTEPSIZE, "Min. time step size.");
+	static_cast<RealParameter*>(getParameter(CFL_MIN_TIMESTEPSIZE))->setMinValue(1e-9);
 
 	CFL_MAX_TIMESTEPSIZE = createNumericParameter("cflMaxTimeStepSize", "CFL - max. time step size", &m_cflMaxTimeStepSize);
 	setGroup(CFL_MAX_TIMESTEPSIZE, "CFL");
@@ -260,6 +279,11 @@ void Simulation::setParticleRadius(Real val)
 	AdhesionKernel::setRadius(m_supportRadius);
 	CubicKernel2D::setRadius(m_supportRadius);
 	WendlandQuinticC2Kernel2D::setRadius(m_supportRadius);
+#ifdef USE_AVX
+	CubicKernel_AVX::setRadius(m_supportRadius, m_sim2D);
+// 	Poly6Kernel_AVX::setRadius(m_supportRadius);
+// 	SpikyKernel_AVX::setRadius(m_supportRadius);
+#endif
 }
 
 void Simulation::setGradKernel(int val)
@@ -354,11 +378,11 @@ void Simulation::setKernel(int val)
 void Simulation::updateTimeStepSize()
 {
 	if (m_cflMethod == 1)
-		updateTimeStepSizeCFL(0.0001);
+		updateTimeStepSizeCFL();
 	else if (m_cflMethod == 2)
 	{
 		Real h = TimeManager::getCurrent()->getTimeStepSize();
-		updateTimeStepSizeCFL(0.0001);
+		updateTimeStepSizeCFL();
 		const unsigned int iterations = m_timeStep->getValue<unsigned int>(TimeStep::SOLVER_ITERATIONS);
 		if (iterations > 10)
 			h *= 0.9;
@@ -369,7 +393,7 @@ void Simulation::updateTimeStepSize()
 	}
 }
 
-void Simulation::updateTimeStepSizeCFL(const Real minTimeStepSize)
+void Simulation::updateTimeStepSizeCFL()
 {
 	const Real radius = m_particleRadius;
 	Real h = TimeManager::getCurrent()->getTimeStepSize();
@@ -440,7 +464,7 @@ void Simulation::updateTimeStepSizeCFL(const Real minTimeStepSize)
 	h = m_cflFactor * static_cast<Real>(0.4) * (diameter / (sqrt(maxVel)));
 
 	h = min(h, m_cflMaxTimeStepSize);
-	h = max(h, minTimeStepSize);
+	h = max(h, m_cflMinTimeStepSize);
 
 	TimeManager::getCurrent()->setTimeStepSize(h);
 }
@@ -556,6 +580,9 @@ void Simulation::performNeighborhoodSearch()
 
 void Simulation::performNeighborhoodSearchSort()
 {
+	if (!zSortEnabled())
+		return;
+
 	m_neighborhoodSearch->z_sort();
 
 	for (unsigned int i = 0; i < numberOfFluidModels(); i++)
@@ -568,6 +595,9 @@ void Simulation::performNeighborhoodSearchSort()
 		BoundaryModel *bm = getBoundaryModel(i);
 		bm->performNeighborhoodSearchSort();
 	}
+#ifdef USE_DEBUG_TOOLS
+	m_debugTools->performNeighborhoodSearchSort();
+#endif
 }
 
 void Simulation::setSimulationMethodChangedCallback(std::function<void()> const& callBackFct)
@@ -579,6 +609,9 @@ void Simulation::emittedParticles(FluidModel *model, const unsigned int startInd
 {
 	model->emittedParticles(startIndex);
 	m_timeStep->emittedParticles(model, startIndex);
+#ifdef USE_DEBUG_TOOLS
+	m_debugTools->emittedParticles(model, startIndex);
+#endif
 }
 
 void Simulation::emitParticles()
@@ -693,3 +726,4 @@ void SPH::Simulation::loadState(BinaryFileReader &binReader)
 		getBoundaryModel(i)->loadState(binReader);
 	m_timeStep->loadState(binReader);
 }
+

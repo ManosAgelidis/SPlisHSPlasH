@@ -8,7 +8,10 @@
 namespace SPH
 {
 	/** \brief This class implements the micropolar material model introduced
-	* by Bender et al. \cite Bender:2017.
+	* by Bender et al. [BKKW17].
+	*
+	* References:
+	* - [BKKW17] Jan Bender, Dan Koschier, Tassilo Kugelstadt, and Marcel Weiler. A micropolar material model for turbulent SPH fluids. In ACM SIGGRAPH / Eurographics Symposium on Computer Animation, SCA '17. ACM, 2017. URL: http://doi.acm.org/10.1145/3099564.3099578
 	*/
 	class MicropolarModel_Bender2017 : public VorticityBase
 	{
@@ -26,6 +29,8 @@ namespace SPH
 
 		MicropolarModel_Bender2017(FluidModel *model);
 		virtual ~MicropolarModel_Bender2017(void);
+
+		static NonPressureForceBase* creator(FluidModel* model) { return new MicropolarModel_Bender2017(model); }
 
 		virtual void step();
 		virtual void reset();

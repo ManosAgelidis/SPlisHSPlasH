@@ -9,7 +9,10 @@ namespace SPH
 {
 	/** \brief This class implements the implicit simulation method for
 	* viscous fluids introduced
-	* by Bender and Koschier \cite Bender2017.
+	* by Bender and Koschier [BK17].
+	*
+	* References:
+	* - [BK17] Jan Bender and Dan Koschier. Divergence-free SPH for incompressible and viscous fluids. IEEE Transactions on Visualization and Computer Graphics, 23(3):1193-1206, 2017. URL: http://dx.doi.org/10.1109/TVCG.2016.2578335
 	*/
 	class Viscosity_Bender2017 : public ViscosityBase
 	{
@@ -30,6 +33,8 @@ namespace SPH
 
 		Viscosity_Bender2017(FluidModel *model);
 		virtual ~Viscosity_Bender2017(void);
+
+		static NonPressureForceBase* creator(FluidModel* model) { return new Viscosity_Bender2017(model); }
 
 		virtual void step();
 		virtual void reset();

@@ -61,6 +61,7 @@ Example code:
 * enablePartioExport (bool): Enable/disable partio export (default: false).
 * enableVTKExport (bool): Enable/disable VTK export (default: false).
 * enableRigidBodyExport (bool): Enable/disable rigid body export (default: false).
+* enableRigidBodyVTKExport (bool): Enable/disable rigid body VTK export (default: false).
 * dataExportFPS (float): Frame rate of particle and rigid body export (default: 25).
 * particleAttributes (string): A list of attribute names separated by ";" that should be exported in the particle files (e.g. "velocity;density") (default: "velocity").
 * enableStateExport (bool): Enable/disable export of complete simulation state (default: false).
@@ -69,7 +70,7 @@ Example code:
 ##### Simulation:
 
 * timeStepSize (float): The initial time step size used for the time integration. If you use an adaptive time stepping, this size will change during the simulation (default: 0.001).
-* particleRadius (float): The radius of the particls in the simulation (all have the same radius) (default: 0.025).
+* particleRadius (float): The radius of the particles in the simulation (all have the same radius) (default: 0.025).
 * sim2D (bool): If this parameter is set to true, a 2D simulation is performend instead of a 3D simulation (default: false).
 * enableZSort (bool): Enable z-sort to improve cache hits and therefore to improve the performance (default: true).
 * gravitation (vec3): Vector to define the gravitational acceleration (default: [0,-9.81,0]).
@@ -140,6 +141,7 @@ Example code:
   - 1: Use CFL condition
   - 2: Use CFL condition and consider number of pressure solver iterations
 * cflFactor (float): Factor to scale the CFL time step size.
+* cflMinTimeStepSize (float): Min. allowed time step size.
 * cflMaxTimeStepSize (float): Max. allowed time step size.
 
 ## FluidBlocks
@@ -159,8 +161,8 @@ Example code:
 ]	
 ```
 
-* start (vec3): Minimum corrdinate of the box which defines the fluid block.
-* end (vec3): Maximum corrdinate of the box which defines the fluid block.
+* start (vec3): Minimum coordinate of the box which defines the fluid block.
+* end (vec3): Maximum coordinate of the box which defines the fluid block.
 * translation (vec3): Translation vector of the block.
 * scale (vec3): Scaling vector of the block. 
 * denseMode (int): 
@@ -168,7 +170,7 @@ Example code:
   - 1: more dense sampling
   - 2: dense sampling
 * initialVelocity (vec3): The initial velocity is set for all particles in the block.
-* id: This id is used in the "Fluid parameter block" (see below) to define the properties of the fluid block. If no id is defined, then the standard id "Fluid" is used.
+* id (string): This id is used in the "Fluid parameter block" (see below) to define the properties of the fluid block. If no id is defined, then the standard id "Fluid" is used.
 
 ## FluidModels
 
@@ -218,8 +220,8 @@ Example code:
 * type (int): Defines the shape of the emitter (default: 0).
   - 0: box
   - 1: circle
-* width (int): Width of the box or radius of the circle emitter (default: 5).
-* height (int): Height of the box (is only used for type 0) (default: 5).
+* width (int): Width of the box or radius of the circle emitter in number of particles (default: 5).
+* height (int): Height of the box in number of particles (is only used for type 0) (default: 5).
 * translation (vec3): Translation vector of the emitter (default: [0,0,0]).
 * rotationAxis (vec3): Axis used to rotate the emitter. Note that in 2D simulations the axis is always set to [0,0,1] (default: [0,0,1]).
 * rotationAngle (float): Rotation angle for the initial rotation of the emitter (default: 0). 
@@ -265,34 +267,39 @@ Example code:
 * mapInvert (bool): Invert the map when using density or volume maps, flips inside/outside (default: false) 
 * mapThickness (float): Additional thickness of a volume or density map (default: 0.0)
 * mapResolution (vec3): Resolution of a volume or density map (defaut: [20,20,20])
-* samplingMode (int): Surface sampling mode. 0 Poisson disk sampling, 1 Regular triangle sampling (default: 1).
+* samplingMode (int): Surface sampling mode. 0 Poisson disk sampling, 1 Regular triangle sampling (default: 0).
 
 
-## Fluid parameter block
+## Materials
 
 ```json
-"Fluid":
-{
-    "density0": 1000, 
-    "colorField": "velocity",
-	"colorMapType": 1,
-	"renderMinValue": 0.0,
-	"renderMaxValue": 5.0,
-    "surfaceTension": 0.2,
-    "surfaceTensionMethod": 0,		
-    "viscosity": 0.01,
-    "viscosityMethod": 1, 
-    "vorticityMethod": 1, 
-    "vorticity": 0.15, 
-    "viscosityOmega": 0.05,
-    "inertiaInverse": 0.5,
-    "maxEmitterParticles": 1000,
-    "emitterReuseParticles": false,
-    "emitterBoxMin": [-4.0,-1.0,-4.0],
-    "emitterBoxMax": [0.0,4,4.0],
-}
+"Materials": [
+	{
+        "id": "Fluid",
+        "density0": 1000, 
+        "colorField": "velocity",
+        "colorMapType": 1,
+        "renderMinValue": 0.0,
+        "renderMaxValue": 5.0,
+        "surfaceTension": 0.2,
+        "surfaceTensionMethod": 0,		
+        "viscosity": 0.01,
+        "viscosityMethod": 1, 
+        "vorticityMethod": 1, 
+        "vorticity": 0.15, 
+        "viscosityOmega": 0.05,
+        "inertiaInverse": 0.5,
+        "maxEmitterParticles": 1000,
+        "emitterReuseParticles": false,
+        "emitterBoxMin": [-4.0,-1.0,-4.0],
+        "emitterBoxMax": [0.0,4,4.0]
+	}
+]
 ```
 
+##### General
+
+* id (string): Defines the id of the material.  You have to give the same id to a FluidBlock, a FluidModel or an Emitter if they should have the defined material behavior.
 * density0 (float): Rest density of the corresponding fluid.
 
 ##### Particle Coloring 
@@ -302,6 +309,9 @@ Example code:
   - 0: None
   - 1: Jet
   - 2: Plasma
+  - 3: CoolWarm
+  - 4: BlueWhiteRed
+  - 5: Seismic
 * renderMinValue (float): Minimal value used for color-coding the color field in the rendering process.
 * renderMaxValue (float): Maximal value used for color-coding the color field in the rendering process.
 
@@ -360,7 +370,7 @@ Example code:
 * youngsModulus (float): Young's modulus - coefficient for the stiffness of the material (default: 100000.0)
 * poissonsRatio (float): Poisson's ratio - measure of the Poisson effect (default: 0.3)
 * alpha (float): Coefficent for zero-energy modes suppression method (default: 0.0)
-* elasticityMaxIter (float): (Peer et al. 2018) Maximum solver iterations (default: 100)
+* elasticityMaxIter (int): (Peer et al. 2018) Maximum solver iterations (default: 100)
 * elasticityMaxError (float): (Peer et al. 2019) Maximum elasticity error allowed by the solver (default: 1.0e-4)
 
 ##### Emitters

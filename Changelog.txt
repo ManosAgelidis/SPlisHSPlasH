@@ -1,3 +1,52 @@
+	- added documentation about how to implement an exporter
+	- added a Python data exporter example (can export rigid bodies in all formats supported by meshio)
+	- added an OBJ rigid body exporter
+	- implemented a simple interface to register own particle and rigid body exporters
+	- extracted the scene configuration in a singleton class
+	- simplified the interface to register a new non-pressure force
+
+2.9.0 
+	- added new surface tension model (thanks to Fernando Zorilla and Marcel Ritter)
+	- added a test for reading and writing the state of a simulation
+	- updated to Eigen 3.3.8
+	- added a hotkey (m) to rescale the range of the current color map
+	- color maps range is determined automatically
+	- all particle fields can now be used for rendering
+	- improved stability of implicit boundary handling
+	- improved documentation
+	- added DebugTools class which generates additional particle data for debugging
+	- added Python example to add a particle field, this can be used for visual debugging or to export additional data per particle
+	- updated pybind
+	- improved warmstart
+	- added build instructions
+	- added more colormaps
+	- improved documentation
+	- added version file
+
+2.8.0
+	- performance improvements
+	- added GUI based on the imgui library
+	- added GLFW
+	- removed dependency on glew
+	- removed dependency on freeglut
+	- bugfixes
+
+2.7.0
+	- added Python binding using pybind (thanks to Stefan Jeske)
+	- added Python examples
+	- performance improvements: Elasticity_Peer2018
+	- bugfixes
+	- new command line parameter to overwrite scene settings
+
+2.6.0
+	- performance improvement: added AVX support for TimeStepDFSPH, DragForce_Gissler2017, Viscosity_Standard, Viscosity_Weiler2018, MicropolarModel_Bender2017
+	- added AVX support for 2D simulations 
+	- added VTk export of rigid bodies
+	- added parameter to control min CFL step size
+	- cleaned up classes of graphical user interface
+	- exchanged Static/DynamicBoundarySimulator by SPHSimulator which can handle dynamic and static scenes
+	- added regular surface sampling
+	- updated to Eigen 3.3.7
 	- bugfixes
 
 2.5.0 

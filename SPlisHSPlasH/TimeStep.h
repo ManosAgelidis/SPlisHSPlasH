@@ -1,5 +1,4 @@
-#ifndef __TimeStep_h__
-#define __TimeStep_h__
+#pragma once
 
 #include "Common.h"
 #include "ParameterObject.h"
@@ -29,10 +28,6 @@ namespace SPH
 		*/
 		void clearAccelerations(const unsigned int fluidModelIndex);
 
-		/** Determine densities of all fluid particles.
-		*/
-		void computeDensities(const unsigned int fluidModelIndex);
-
 		virtual void initParameters();
 
 		void approximateNormal(Discregrid::DiscreteGrid* map, const Eigen::Vector3d &x, Vector3r &n, const unsigned int dim);
@@ -45,6 +40,10 @@ namespace SPH
 		TimeStep();
 		virtual ~TimeStep(void);
 
+		/** Determine densities of all fluid particles.
+		*/
+		void computeDensities(const unsigned int fluidModelIndex);
+
 		virtual void step() = 0;
 		virtual void reset();
 
@@ -55,7 +54,10 @@ namespace SPH
 
 		virtual void saveState(BinaryFileWriter &binWriter) {};
 		virtual void loadState(BinaryFileReader &binReader) {};
+
+#ifdef USE_PERFORMANCE_OPTIMIZATION
+		void precomputeValues();
+#endif
 	};
 }
 
-#endif

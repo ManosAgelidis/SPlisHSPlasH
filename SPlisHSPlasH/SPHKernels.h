@@ -5,6 +5,9 @@
 #include <math.h>
 #include "Common.h"
 #include <algorithm>
+#ifdef USE_AVX
+#include "SPlisHSPlasH/Utilities/AVX_math.h"
+#endif
 
 namespace SPH
 {
@@ -22,7 +25,7 @@ namespace SPH
 		static void setRadius(Real val)
 		{
 			m_radius = val;
-			static const Real pi = static_cast<Real>(M_PI);
+			const Real pi = static_cast<Real>(M_PI);
 
 			const Real h3 = m_radius*m_radius*m_radius;
 			m_k = static_cast<Real>(8.0) / (pi*h3);
@@ -45,7 +48,7 @@ namespace SPH
 				}
 				else
 				{
-					res = m_k * (static_cast<Real>(2.0)*pow(static_cast<Real>(1.0) - q, 3));
+					res = m_k * (static_cast<Real>(2.0)*pow(static_cast<Real>(1.0) - q, static_cast<Real>(3.0)));
 				}
 			}
 			return res;
@@ -61,7 +64,7 @@ namespace SPH
 			Vector3r res;
 			const Real rl = r.norm();
 			const Real q = rl / m_radius;
-			if ((rl > 1.0e-6) && (q <= 1.0))
+			if ((rl > 1.0e-5) && (q <= 1.0))
 			{
 				const Vector3r gradq = r * (static_cast<Real>(1.0) / (rl*m_radius));
 				if (q <= 0.5)
@@ -101,9 +104,9 @@ namespace SPH
 		static void setRadius(Real val)
 		{
 			m_radius = val;
-			static const Real pi = static_cast<Real>(M_PI);
-			m_k = static_cast<Real>(315.0) / (static_cast<Real>(64.0)*pi*pow(m_radius, 9));
-			m_l = -static_cast<Real>(945.0) / (static_cast<Real>(32.0)*pi*pow(m_radius, 9));
+			const Real pi = static_cast<Real>(M_PI);
+			m_k = static_cast<Real>(315.0) / (static_cast<Real>(64.0)*pi*pow(m_radius, static_cast<Real>(9.0)));
+			m_l = -static_cast<Real>(945.0) / (static_cast<Real>(32.0)*pi*pow(m_radius, static_cast<Real>(9.0)));
 			m_m = m_l;
 			m_W_zero = W(Vector3r::Zero());
 		}
@@ -121,7 +124,7 @@ namespace SPH
 			const Real radius2 = m_radius*m_radius;
 			if (r2 <= radius2)
 			{
-				res = pow(radius2 - r2, 3)*m_k;
+				res = pow(radius2 - r2, static_cast<Real>(3.0))*m_k;
 			}
 			return res;
 		}
@@ -133,7 +136,7 @@ namespace SPH
 			const Real radius2 = m_radius*m_radius;
 			if (r2 <= radius2)
 			{
-				res = pow(radius2 - r2, 3)*m_k;
+				res = pow(radius2 - r2, static_cast<Real>(3.0))*m_k;
 			}
 			return res;
 		}
@@ -200,8 +203,8 @@ namespace SPH
 		static void setRadius(Real val)
 		{
 			m_radius = val;
-			const Real radius6 = pow(m_radius, 6);
-			static const Real pi = static_cast<Real>(M_PI);
+			const Real radius6 = pow(m_radius, static_cast<Real>(6.0));
+			const Real pi = static_cast<Real>(M_PI);
 			m_k = static_cast<Real>(15.0) / (pi*radius6);
 			m_l = -static_cast<Real>(45.0) / (pi*radius6);
 			m_W_zero = W(Vector3r::Zero());
@@ -219,7 +222,7 @@ namespace SPH
 			const Real radius2 = m_radius*m_radius;
 			if (r2 <= radius2)
 			{
-				const Real hr3 = pow(m_radius - r, 3);
+				const Real hr3 = pow(m_radius - r, static_cast<Real>(3.0));
 				res = m_k * hr3;
 			}
 			return res;
@@ -232,7 +235,7 @@ namespace SPH
 			const Real radius2 = m_radius*m_radius;
 			if (r2 <= radius2)
 			{
-				const Real hr3 = pow(m_radius - sqrt(r2), 3);
+				const Real hr3 = pow(m_radius - sqrt(r2), static_cast<Real>(3.0));
 				res = m_k * hr3;
 			}
 			return res;
@@ -280,10 +283,9 @@ namespace SPH
 		static void setRadius(Real val)
 		{
 			m_radius = val;
-			static const Real pi = static_cast<Real>(M_PI);
+			const Real pi = static_cast<Real>(M_PI);
 
 			const Real h3 = m_radius*m_radius*m_radius;
-			const Real h5 = h3*m_radius*m_radius;
 			m_k = static_cast<Real>(21.0) / (static_cast<Real>(2.0)*pi*h3);
 			m_l = -static_cast<Real>(210.0) / (pi*h3);
 			m_W_zero = W(0.0);
@@ -295,7 +297,7 @@ namespace SPH
 			Real res = 0.0;
 			const Real q = r / m_radius;
 			if (q <= 1.0)
-				res = m_k * pow(static_cast<Real>(1.0) - q, 4) * (static_cast<Real>(4.0) * q + static_cast<Real>(1.0));
+				res = m_k * pow(static_cast<Real>(1.0) - q, static_cast<Real>(4.0)) * (static_cast<Real>(4.0) * q + static_cast<Real>(1.0));
 			return res;
 		}
 
@@ -326,7 +328,10 @@ namespace SPH
 		}
 	};
 
-	/** \brief Cohesion kernel used for the surface tension method of Akinci el al. \cite Akinci:2013.
+	/** \brief Cohesion kernel used for the surface tension method of Akinci el al. [ATT13].
+	*
+	* References:
+	* - [AAT13] Nadir Akinci, Gizem Akinci, and Matthias Teschner. Versatile surface tension and adhesion for sph fluids. ACM Trans. Graph., 32(6):182:1-182:8, November 2013. URL: http://doi.acm.org/10.1145/2508363.2508395
 	*/
 	class CohesionKernel
 	{
@@ -340,9 +345,9 @@ namespace SPH
 		static void setRadius(Real val)
 		{
 			m_radius = val;
-			static const Real pi = static_cast<Real>(M_PI);
-			m_k = static_cast<Real>(32.0) / (pi*pow(m_radius, 9));
-			m_c = pow(m_radius, 6) / static_cast<Real>(64.0);
+			const Real pi = static_cast<Real>(M_PI);
+			m_k = static_cast<Real>(32.0) / (pi*pow(m_radius, static_cast<Real>(9.0)));
+			m_c = pow(m_radius, static_cast<Real>(6.0)) / static_cast<Real>(64.0);
 			m_W_zero = W(Vector3r::Zero());
 		}
 
@@ -362,9 +367,9 @@ namespace SPH
 				const Real r1 = sqrt(r2);
 				const Real r3 = r2*r1;
 				if (r1 > 0.5*m_radius)
-					res = m_k*pow(m_radius - r1, 3)*r3;
+					res = m_k*pow(m_radius - r1, static_cast<Real>(3.0))*r3;
 				else
-					res = m_k* static_cast<Real>(2.0)*pow(m_radius - r1, 3)*r3 - m_c;
+					res = m_k* static_cast<Real>(2.0)*pow(m_radius - r1, static_cast<Real>(3.0))*r3 - m_c;
 
 			}
 			return res;
@@ -380,9 +385,9 @@ namespace SPH
 				const Real r1 = sqrt(r2);
 				const Real r3 = r2*r1;
 				if (r1 > 0.5*m_radius)
-					res = m_k*pow(m_radius - r1, 3)*r3;
+					res = m_k*pow(m_radius - r1, static_cast<Real>(3.0))*r3;
 				else
-					res = m_k* static_cast<Real>(2.0)*pow(m_radius - r1, 3)*r3 - m_c;
+					res = m_k* static_cast<Real>(2.0)*pow(m_radius - r1, static_cast<Real>(3.0))*r3 - m_c;
 
 			}
 			return res;
@@ -394,7 +399,10 @@ namespace SPH
 		}
 	};
 
-	/** \brief Adhesion kernel used for the surface tension method of Akinci el al. \cite Akinci:2013.
+	/** \brief Adhesion kernel used for the surface tension method of Akinci el al. [ATT13].
+	*
+	* References:
+	* - [AAT13] Nadir Akinci, Gizem Akinci, and Matthias Teschner. Versatile surface tension and adhesion for sph fluids. ACM Trans. Graph., 32(6):182:1-182:8, November 2013. URL: http://doi.acm.org/10.1145/2508363.2508395
 	*/
 	class AdhesionKernel
 	{
@@ -464,7 +472,7 @@ namespace SPH
 		static void setRadius(Real val)
 		{
 			m_radius = val;
-			static const Real pi = static_cast<Real>(M_PI);
+			const Real pi = static_cast<Real>(M_PI);
 
 			const Real h2 = m_radius*m_radius;
 			m_k = static_cast<Real>(40.0) / (static_cast<Real>(7.0) * (pi*h2));
@@ -488,7 +496,7 @@ namespace SPH
 				}
 				else
 				{
-					res = m_k * (static_cast<Real>(2.0)*pow(static_cast<Real>(1.0) - q, 3));
+					res = m_k * (static_cast<Real>(2.0)*pow(static_cast<Real>(1.0) - q, static_cast<Real>(3.0)));
 				}
 			}
 			return res;
@@ -506,7 +514,7 @@ namespace SPH
 			const Real q = rl / m_radius;
 			if (q <= 1.0)
 			{
-				if (rl > 1.0e-6)
+				if (rl > 1.0e-5)
 				{
 					const Vector3r gradq = r * (static_cast<Real>(1.0) / (rl*m_radius));
 					if (q <= 0.5)
@@ -546,7 +554,7 @@ namespace SPH
 		static void setRadius(Real val)
 		{
 			m_radius = val;
-			static const Real pi = static_cast<Real>(M_PI);
+			const Real pi = static_cast<Real>(M_PI);
 
 			const Real h2 = m_radius*m_radius;
 			m_k = static_cast<Real>(7.0) / (pi*h2);
@@ -561,7 +569,7 @@ namespace SPH
 			Real res = 0.0;
 			const Real q = r / m_radius;
 			if (q <= 1.0)
-				res = m_k * pow(static_cast<Real>(1.0) - q, 4) * (static_cast<Real>(4.0) * q + static_cast<Real>(1.0));
+				res = m_k * pow(static_cast<Real>(1.0) - q, static_cast<Real>(4.0)) * (static_cast<Real>(4.0) * q + static_cast<Real>(1.0));
 			return res;
 		}
 
@@ -578,7 +586,7 @@ namespace SPH
 			if (q <= 1.0)
 			{
 				const Vector3r gradq = r * (static_cast<Real>(1.0) / (rl*m_radius));
-				res = m_l*q*pow(static_cast<Real>(1.0) - q, 3)*gradq;
+				res = m_l*q*pow(static_cast<Real>(1.0) - q, static_cast<Real>(3.0))*gradq;
 			}
 			else
 				res.setZero();
@@ -593,9 +601,13 @@ namespace SPH
 	};
 
 
-	/** \brief Precomputed kernel which is based on a lookup table as described by Bender and Koschier \cite Bender:2015, \cite Bender2017.
+	/** \brief Precomputed kernel which is based on a lookup table as described by Bender and Koschier [BK15,BK17].
 	*
 	* The lookup tables can be used in combination with any kernel. 
+	*
+	* References:
+	* - [BK15] Jan Bender and Dan Koschier. Divergence-free smoothed particle hydrodynamics. In ACM SIGGRAPH / Eurographics Symposium on Computer Animation, SCA '15, 147-155. New York, NY, USA, 2015. ACM. URL: http://doi.acm.org/10.1145/2786784.2786796
+	* - [BK17] Jan Bender and Dan Koschier. Divergence-free SPH for incompressible and viscous fluids. IEEE Transactions on Visualization and Computer Graphics, 23(3):1193-1206, 2017. URL: http://dx.doi.org/10.1109/TVCG.2016.2578335
 	*/
 	template<typename KernelType, unsigned int resolution = 10000u>
 	class PrecomputedKernel
@@ -676,6 +688,258 @@ namespace SPH
 			return m_W_zero;
 		}
 	};
+
+#ifdef USE_AVX
+	/** \brief Cubic spline kernel.
+	*/
+	class CubicKernel_AVX
+	{
+	protected:
+		static Real m_r;
+		static Scalarf8 m_invRadius;
+		static Scalarf8 m_invRadius2;
+		static Scalarf8 m_k;
+		static Scalarf8 m_l;
+		static Real m_W_zero;
+		static Scalarf8 m_zero;
+		static Scalarf8 m_half;
+		static Scalarf8 m_one;
+		static Scalarf8 m_eps;
+
+
+	public:
+		static Real getRadius() { return m_r; }
+		static void setRadius(Real val, bool is2D = false)
+		{
+			m_r = val;
+			m_invRadius = Scalarf8(1.0f/val);
+			m_invRadius2 = m_invRadius*m_invRadius;
+			const Real pi = static_cast<Real>(M_PI);
+
+			if (!is2D)
+			{
+				const Real h3 = m_r * m_r * m_r;
+				m_k = Scalarf8(8.0f / static_cast<float>(pi*h3));
+				m_l = Scalarf8(48.0f / static_cast<float>(pi*h3));
+			}
+			else
+			{
+				const Real h2 = m_r * m_r;
+				m_k = static_cast<Real>(40.0) / (static_cast<Real>(7.0) * (pi*h2));
+				m_l = static_cast<Real>(240.0) / (static_cast<Real>(7.0) * (pi*h2));
+			}
+			m_zero = Scalarf8(0.0f);
+			m_half = Scalarf8(0.5f);
+			m_one = Scalarf8(1.0f);
+			m_eps = Scalarf8(1.0e-5f);
+			Scalarf8 W_zero = W(m_zero);
+			float tmp[8];
+			W_zero.store(tmp);
+			m_W_zero = tmp[0];
+		}
+
+	public:
+		static Scalarf8 W(const Scalarf8 r)
+		{
+			Scalarf8 res;
+			const Scalarf8 q = r * m_invRadius;
+
+			const Scalarf8 v = m_one - q;
+
+			// q <= 0.5
+			const Scalarf8 res1 = m_k * (Scalarf8(-6.0f) * q*q * v + m_one);
+			// 0.5 <= q <= 1
+			const Scalarf8 res2 = (m_k * Scalarf8(2.0f)*(v*v*v));
+
+			res = blend(q <= m_one, res2, m_zero);
+			res = blend(q <= m_half, res1, res);
+			
+			return res;
+		}
+
+ 		static Scalarf8 W(const Vector3f8 &r)
+ 		{
+ 			return W(r.norm());
+ 		}
+ 
+ 		static Vector3f8 gradW(const Vector3f8 &r)
+ 		{
+			Scalarf8 res;
+ 			const Scalarf8 rl = r.norm();
+ 			const Scalarf8 q = rl * m_invRadius;
+
+			// q <= 0.5
+			const Scalarf8 res1 =  (m_l * m_invRadius2 * (Scalarf8(3.0f)*q - Scalarf8(2.0f)));
+
+			// 0.5 <= q <= 1
+			const Scalarf8 v = m_one - q;
+			const Scalarf8 gradq = (m_invRadius / rl);
+			const Scalarf8 res2 = gradq * (-m_l * (v*v));
+
+
+			res = blend(q <= m_one, res2, m_zero);
+			res = blend(q <= m_half, res1, res);
+			res = blend(rl > m_eps, res, m_zero);
+
+ 			return r * res;
+ 		}
+
+		static const Real& W_zero() 
+		{
+			return m_W_zero;
+		}
+	};
+
+	/** \brief Poly6 kernel.
+*/
+	class Poly6Kernel_AVX
+	{
+	protected:
+		static Real m_radius;
+		static Real m_k;
+		static Real m_l;
+		static Scalarf8 m_radius_avx;
+		static Real m_W_zero;
+	public:
+		static Real getRadius() { return m_radius; }
+		static void setRadius(Real val)
+		{
+			m_radius = val;
+			const Real pi = static_cast<Real>(M_PI);
+ 			m_k = static_cast<Real>(315.0) / (static_cast<Real>(64.0)*pi*pow(m_radius, static_cast<Real>(9)));
+ 			m_l = -static_cast<Real>(945.0) / (static_cast<Real>(32.0)*pi*pow(m_radius, static_cast<Real>(9)));
+			m_radius_avx = Scalarf8(m_radius);
+			Scalarf8 W_zero = W(Scalarf8(0.0f));
+			float tmp[8];
+			W_zero.store(tmp);
+			m_W_zero = tmp[0];
+		}
+
+	public:
+
+		/**
+		* W(r,h) = (315/(64 pi h^9))(h^2-|r|^2)^3
+		*        = (315/(64 pi h^9))(h^2-r*r)^3
+		*/
+		static Scalarf8 W(const Scalarf8 r)
+		{
+			Scalarf8 res;
+			const Scalarf8 r2 = r * r;
+			const Scalarf8 radius2 = m_radius_avx * m_radius_avx;
+			const Scalarf8 t = (radius2 - r2);
+			res = t*t*t*Scalarf8(m_k);
+			return blend(r2 <= radius2, res, Scalarf8(0.0f));
+		}
+
+		static Scalarf8 W(const Vector3f8 &r)
+		{
+			Scalarf8 res;
+			const Scalarf8 r2 = r.squaredNorm();
+			const Scalarf8 radius2 = m_radius_avx * m_radius_avx;
+			const Scalarf8 t = (radius2 - r2);
+			res = t * t * t * Scalarf8(m_k);
+			return blend(r2 <= radius2, res, Scalarf8(0.0f));
+		}
+
+
+		/**
+		* grad(W(r,h)) = r(-945/(32 pi h^9))(h^2-|r|^2)^2
+		*              = r(-945/(32 pi h^9))(h^2-r*r)^2
+		*/
+		static Vector3f8 gradW(const Vector3f8 &r)
+		{
+			Vector3f8 res;
+			res.setZero();
+			const Scalarf8 r2 = r.squaredNorm();
+			const Scalarf8 radius2 = m_radius_avx * m_radius_avx;
+			const Scalarf8 t = (radius2 - r2);
+
+			const Vector3f8 res2 = r * (t*t*Scalarf8(m_l));
+			return Vector3f8::blend(r2 <= radius2, res2, res);
+		}
+
+		//static Scalarf8 W_zero()
+		//{
+		//	return m_W_zero;
+		//}
+
+		static const Real& W_zero()
+		{
+			return m_W_zero;
+		}
+	};
+
+
+	/** \brief Spiky kernel.
+	*/
+	class SpikyKernel_AVX
+	{
+	protected:
+		static Real m_radius;
+		static Real m_k;
+		static Real m_l;
+		static Scalarf8 m_radius_avx;
+		static Scalarf8 m_W_zero;
+		static Scalarf8 m_eps;
+	public:
+		static Real getRadius() { return m_radius; }
+		static void setRadius(Real val)
+		{
+			m_radius = val;
+			const Real radius6 = pow(m_radius, 6.0f);
+ 			const Real pi = static_cast<Real>(M_PI);
+ 			m_k = static_cast<Real>(15.0) / (pi*radius6);
+ 			m_l = -static_cast<Real>(45.0) / (pi*radius6);
+			m_radius_avx = Scalarf8(m_radius);
+ 			m_W_zero = W(Scalarf8(0.0f));
+ 			m_eps = Scalarf8(1.0e-5f);
+		}
+
+	public:
+
+		/**
+		* W(r,h) = 15/(pi*h^6) * (h-r)^3
+		*/
+		static Scalarf8 W(const Scalarf8 r)
+		{
+			Scalarf8 res;
+			const Scalarf8 t = (m_radius_avx - r);
+			res = t*t*t*Scalarf8(m_k);
+			return blend(r <= m_radius_avx, res, Scalarf8(0.0f));
+		}
+
+		static Scalarf8 W(const Vector3f8 &r)
+		{
+			return W(r.norm());
+		}
+
+
+		/**
+		* grad(W(r,h)) = -r(45/(pi*h^6) * (h-r)^2)
+		*/
+		static Vector3f8 gradW(const Vector3f8 &r)
+		{
+			Vector3f8 res;
+			res.setZero();
+			const Scalarf8 r2 = r.squaredNorm();
+			const Scalarf8 radius2 = m_radius_avx * m_radius_avx;
+			const Scalarf8 r_l = r2.sqrt();
+			const Scalarf8 t = (m_radius_avx - r_l);
+
+			Vector3f8 res2 = r * (t*t*Scalarf8(m_l)/r_l);
+
+			res2 = Vector3f8::blend(r_l > m_eps, res2, res);
+			res = Vector3f8::blend(r2 <= radius2, res2, res);
+			return res;
+		}
+
+		static Scalarf8 W_zero()
+		{
+			return m_W_zero;
+		}
+	};
+
+#endif
 
 	template<typename KernelType, unsigned int resolution>
 	Real PrecomputedKernel<KernelType, resolution>::m_radius;

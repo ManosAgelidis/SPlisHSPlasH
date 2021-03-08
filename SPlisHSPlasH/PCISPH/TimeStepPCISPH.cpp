@@ -53,6 +53,11 @@ void TimeStepPCISPH::step()
 
 	performNeighborhoodSearch();
 
+#ifdef USE_PERFORMANCE_OPTIMIZATION
+	precomputeValues();
+#endif
+
+
 	if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Bender2019)
 		computeVolumeAndBoundaryX();
 	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Koschier2017)
@@ -221,7 +226,7 @@ void TimeStepPCISPH::pressureSolveIteration(const unsigned int fluidModelIndex, 
 			else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Bender2019)
 			{
 				forall_volume_maps(
-					densityAdv += 0.25*Vj * sim->W(xi - xj);		// reduce volume to make it more stable
+					densityAdv += static_cast<Real>(0.25)*Vj * sim->W(xi - xj);		// reduce volume to make it more stable
 				);
 			}
 

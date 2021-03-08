@@ -8,6 +8,9 @@
 #include "NeighborhoodSearch.h"
 #include "BoundaryModel.h"
 #include "AnimationFieldSystem.h"
+#ifdef USE_DEBUG_TOOLS
+#include "SPlisHSPlasH/Utilities/DebugTools.h"
+#endif
 
 
 /** Loop over the fluid neighbors of all fluid phases. 
@@ -82,6 +85,80 @@ for (unsigned int pid = 0; pid < nBoundaries; pid++) \
 	} \
 }
 
+#ifdef USE_AVX
+/** Loop over the fluid neighbors of all fluid phases.
+* Simulation *sim and unsigned int fluidModelIndex must be defined.
+*/
+#define forall_fluid_neighbors_avx(code) \
+	for (unsigned int pid = 0; pid < nFluids; pid++) \
+	{ \
+		FluidModel *fm_neighbor = sim->getFluidModelFromPointSet(pid); \
+		const unsigned int maxN = sim->numberOfNeighbors(fluidModelIndex, pid, i); \
+		for (unsigned int j = 0; j < maxN; j += 8) \
+		{ \
+			const unsigned int count = std::min(maxN - j, 8u); \
+			const Vector3f8 xj_avx = convertVec_zero(&sim->getNeighborList(fluidModelIndex, pid, i)[j], &fm_neighbor->getPosition(0), count); \
+			code \
+		} \
+	} 
+
+/** Loop over the fluid neighbors of all fluid phases.
+* Simulation *sim and unsigned int fluidModelIndex must be defined.
+*/
+#define forall_fluid_neighbors_avx_nox(code) \
+	unsigned int idx = 0; \
+	for (unsigned int pid = 0; pid < nFluids; pid++) \
+	{ \
+		FluidModel *fm_neighbor = sim->getFluidModelFromPointSet(pid); \
+		const unsigned int maxN = sim->numberOfNeighbors(fluidModelIndex, pid, i); \
+		for (unsigned int j = 0; j < maxN; j += 8) \
+		{ \
+			const unsigned int count = std::min(maxN - j, 8u); \
+			code \
+			idx++; \
+		} \
+	} 
+
+/** Loop over the fluid neighbors of the same fluid phase.
+* Simulation *sim, unsigned int fluidModelIndex and FluidModel* model must be defined.
+*/
+#define forall_fluid_neighbors_in_same_phase_avx(code) \
+	const unsigned int maxN = sim->numberOfNeighbors(fluidModelIndex, fluidModelIndex, i); \
+	for (unsigned int j = 0; j < maxN; j += 8) \
+	{ \
+		const unsigned int count = std::min(maxN - j, 8u); \
+		const Vector3f8 xj_avx = convertVec_zero(&sim->getNeighborList(fluidModelIndex, fluidModelIndex, i)[j], &model->getPosition(0), count); \
+		code \
+	} 
+
+/** Loop over the fluid neighbors of the same fluid phase.
+* Simulation *sim, unsigned int fluidModelIndex and FluidModel* model must be defined.
+*/
+#define forall_fluid_neighbors_in_same_phase_avx_nox(code) \
+	const unsigned int maxN = sim->numberOfNeighbors(fluidModelIndex, fluidModelIndex, i); \
+	for (unsigned int j = 0; j < maxN; j += 8) \
+	{ \
+		const unsigned int count = std::min(maxN - j, 8u); \
+		code \
+	} 
+
+/** Loop over the boundary neighbors of all fluid phases.
+* Simulation *sim and unsigned int fluidModelIndex must be defined.
+*/
+#define forall_boundary_neighbors_avx(code) \
+	for (unsigned int pid = nFluids; pid < sim->numberOfPointSets(); pid++) \
+	{ \
+		BoundaryModel_Akinci2012 *bm_neighbor = static_cast<BoundaryModel_Akinci2012*>(sim->getBoundaryModelFromPointSet(pid)); \
+		const unsigned int maxN = sim->numberOfNeighbors(fluidModelIndex, pid, i); \
+		for (unsigned int j = 0; j < maxN; j += 8) \
+		{ \
+			const unsigned int count = std::min(maxN - j, 8u); \
+			const Vector3f8 xj_avx = convertVec_zero(&sim->getNeighborList(fluidModelIndex, pid, i)[j], &bm_neighbor->getPosition(0), count); \
+			code \
+		} \
+	}
+
+#endif
 
 
 
@@ -101,6 +178,7 @@ namespace SPH
 		static int GRAVITATION;
 		static int CFL_METHOD;
 		static int CFL_FACTOR;
+		static int CFL_MIN_TIMESTEPSIZE;
 		static int CFL_MAX_TIMESTEPSIZE;
 		static int ENABLE_Z_SORT;
 
@@ -141,6 +219,13 @@ namespace SPH
 
 		typedef PrecomputedKernel<CubicKernel, 10000> PrecomputedCubicKernel;
 
+		struct NonPressureForceMethod
+		{
+			std::string m_name;
+			std::function<NonPressureForceBase* (FluidModel*)> m_creator;
+			int m_id;
+		};
+
 	protected:
 		std::vector<FluidModel*> m_fluidModels;
 		std::vector<BoundaryModel*> m_boundaryModels;
@@ -148,6 +233,7 @@ namespace SPH
 		AnimationFieldSystem *m_animationFieldSystem;
 		int m_cflMethod;
 		Real m_cflFactor;
+		Real m_cflMinTimeStepSize;
 		Real m_cflMaxTimeStepSize;
 		int m_kernelMethod;
 		int m_gradKernelMethod;
@@ -163,14 +249,26 @@ namespace SPH
 		bool m_enableZSort;
 		std::function<void()> m_simulationMethodChanged;		
 		int m_boundaryHandlingMethod;
+		std::vector<NonPressureForceMethod> m_dragMethods;
+		std::vector<NonPressureForceMethod> m_elasticityMethods;
+		std::vector<NonPressureForceMethod> m_surfaceTensionMethods;
+		std::vector<NonPressureForceMethod> m_vorticityMethods;
+		std::vector<NonPressureForceMethod> m_viscoMethods;
+#ifdef USE_DEBUG_TOOLS
+		DebugTools* m_debugTools;
+#endif
 
 		virtual void initParameters();
+
+		void registerNonpressureForces();
 		
 	private:
 		static Simulation *current;
 
 	public:
 		Simulation ();
+		Simulation(const Simulation&) = delete;
+        Simulation& operator=(const Simulation&) = delete;
 		~Simulation ();
 
 		void init(const Real particleRadius, const bool sim2D);
@@ -226,7 +324,7 @@ namespace SPH
 
 		/** Update time step size by CFL condition.
 		*/
-		void updateTimeStepSizeCFL(const Real minTimeStepSize);
+		void updateTimeStepSizeCFL();
 
 		/** Perform the neighborhood search for all fluid particles.
 		*/
@@ -243,6 +341,26 @@ namespace SPH
 
 		void saveState(BinaryFileWriter &binWriter);
 		void loadState(BinaryFileReader &binReader);
+
+		void addDragMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_dragMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getDragMethods() { return m_dragMethods; }
+
+		void addElasticityMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_elasticityMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getElasticityMethods() { return m_elasticityMethods; }
+
+		void addSurfaceTensionMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_surfaceTensionMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getSurfaceTensionMethods() { return m_surfaceTensionMethods; }
+
+		void addViscosityMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_viscoMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getViscosityMethods() { return m_viscoMethods; }
+
+		void addVorticityMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_vorticityMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getVorticityMethods() { return m_vorticityMethods; }
+
+#ifdef USE_DEBUG_TOOLS
+		DebugTools* getDebugTools() { return m_debugTools; }
+		void createDebugTools() { m_debugTools = new DebugTools(); m_debugTools->init(); }
+#endif
 
 		FORCE_INLINE unsigned int numberOfPointSets() const
 		{

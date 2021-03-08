@@ -46,7 +46,7 @@ namespace SPH
 				// and projection on x-axis is between 0 and h
 				const Real proj = xlocal.x();
 				const Real d2 = Vector2r(xlocal.y(), xlocal.z()).squaredNorm();
-				const Real hHalf = 0.5*h;
+				const Real hHalf = static_cast<Real>(0.5)*h;
 				return (proj > -hHalf) && (proj < hHalf) && (d2 < r2);
 			}
 
@@ -64,6 +64,13 @@ namespace SPH
 
 			void saveState(BinaryFileWriter &binWriter);
 			void loadState(BinaryFileReader &binReader);
+
+			const Vector3r &getPosition() const { return m_x; }
+			void setPosition(const Vector3r& x) { m_x = x; }
+			const Matrix3r& getRotation() const { return m_rotation; }
+			void setRotation(const Matrix3r& r) { m_rotation = r; }
+			const Real getVelocity() const { return m_velocity; }
+			void setVelocity(const Real v) { m_velocity = v; }
 	};
 }
 

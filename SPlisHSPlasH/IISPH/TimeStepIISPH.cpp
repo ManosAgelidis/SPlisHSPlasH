@@ -64,6 +64,10 @@ void TimeStepIISPH::step()
 
 	performNeighborhoodSearch();
 
+#ifdef USE_PERFORMANCE_OPTIMIZATION
+	precomputeValues();
+#endif
+
 	if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Bender2019)
 		computeVolumeAndBoundaryX();
 	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Koschier2017)
@@ -295,7 +299,7 @@ void TimeStepIISPH::pressureSolve()
 
 		m_iterations++;
 	}
-	INCREASE_COUNTER("IISPH - iterations", m_iterations);
+	INCREASE_COUNTER("IISPH - iterations", static_cast<Real>(m_iterations));
 }
 
 void TimeStepIISPH::pressureSolveIteration(const unsigned int fluidModelIndex, Real &avg_density_err)

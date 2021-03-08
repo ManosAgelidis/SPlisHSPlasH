@@ -7,7 +7,44 @@
 #include "RigidBodyObject.h"
 #include "SPHKernels.h"
 #include "ParameterObject.h"
+#ifdef USE_AVX
+#include "SPlisHSPlasH/Utilities/AVX_math.h"
+#endif
 #include "Utilities/BinaryFileReaderWriter.h"
+
+
+#ifdef USE_PERFORMANCE_OPTIMIZATION
+	// compute the value xj (empty in the optimized version)
+	#define compute_xj(fm_neighbor, pid) 
+
+	// compute the value Vj (empty in the optimized version)
+	#define compute_Vj(fm_neighbor)
+
+	// compute the value Vj * gradW 
+	#define compute_Vj_gradW() \
+		const Vector3f8& V_gradW = model->get_precomputed_V_gradW()[model->get_precomputed_indices()[i] + idx];
+
+	// compute the value Vj * gradW 
+	#define compute_Vj_gradW_samephase() \
+		const Vector3f8& V_gradW = model->get_precomputed_V_gradW()[model->get_precomputed_indices_same_phase()[i] + j / 8];
+#else 
+	// compute the value xj
+	#define compute_xj(fm_neighbor, pid) \
+		const Vector3f8 xj_avx = convertVec_zero(&sim->getNeighborList(fluidModelIndex, pid, i)[j], &fm_neighbor->getPosition(0), count);
+
+	// compute the value Vj
+	#define compute_Vj(fm_neighbor) \
+		const Scalarf8 Vj_avx = convert_zero(fm_neighbor->getVolume(0), count); 
+
+	// compute the value Vj * gradW assuming that xj and Vj are already available
+	#define compute_Vj_gradW() \
+		const Vector3f8 &V_gradW = CubicKernel_AVX::gradW(xi_avx - xj_avx) * Vj_avx;
+
+	// compute the value Vj * gradW assuming that xj and Vj are already available
+	#define compute_Vj_gradW_samephase() \
+		const Vector3f8 &V_gradW = CubicKernel_AVX::gradW(xi_avx - xj_avx) * Vj_avx;
+#endif
+
 
 namespace SPH 
 {	
@@ -33,13 +70,7 @@ namespace SPH
 			name(n), type(t), getFct(fct), storeData(s) { }
 	};
 
-	enum class SurfaceTensionMethods { None = 0, Becker2007, Akinci2013, He2014, NumSurfaceTensionMethods };
-	enum class ViscosityMethods { None = 0, Standard, XSPH, Bender2017, Peer2015, Peer2016, Takahashi2015, Weiler2018, NumViscosityMethods };
-	enum class VorticityMethods { None = 0, Micropolar, VorticityConfinement, NumVorticityMethods };
-	enum class DragMethods { None = 0, Macklin2014, Gissler2017, NumDragMethods };
-	enum class ElasticityMethods { None = 0, Becker2009, Peer2018, NumElasticityMethods };
-
-	enum class ParticleState { Active = 0, AnimatedByEmitter };
+	enum class ParticleState { Active = 0, AnimatedByEmitter, AnimatedByVM };
 
 	/** \brief The fluid model stores the particle and simulation information 
 	*/
@@ -56,33 +87,9 @@ namespace SPH
 			static int VORTICITY_METHOD;
 			static int ELASTICITY_METHOD;
 
-			static int ENUM_DRAG_NONE;
-			static int ENUM_DRAG_MACKLIN2014;
-			static int ENUM_DRAG_GISSLER2017;
-
-			static int ENUM_SURFACETENSION_NONE;
-			static int ENUM_SURFACETENSION_BECKER2007;
-			static int ENUM_SURFACETENSION_AKINCI2013;
-			static int ENUM_SURFACETENSION_HE2014;
-
-			static int ENUM_VISCOSITY_NONE;
-			static int ENUM_VISCOSITY_STANDARD;
-			static int ENUM_VISCOSITY_XSPH;
-			static int ENUM_VISCOSITY_BENDER2017;
-			static int ENUM_VISCOSITY_PEER2015;
-			static int ENUM_VISCOSITY_PEER2016;
-			static int ENUM_VISCOSITY_TAKAHASHI2015;
-			static int ENUM_VISCOSITY_WEILER2018;
-
-			static int ENUM_VORTICITY_NONE;
-			static int ENUM_VORTICITY_MICROPOLAR;
-			static int ENUM_VORTICITY_VC;
-
-			static int ENUM_ELASTICITY_NONE;
-			static int ENUM_ELASTICITY_BECKER2009;
-			static int ENUM_ELASTICITY_PEER2018;
-			
 			FluidModel();
+			FluidModel(const FluidModel&) = delete;
+            FluidModel& operator=(const FluidModel&) = delete;
 			virtual ~FluidModel();
 
 			void init();
@@ -106,15 +113,21 @@ namespace SPH
 			std::vector<ParticleState> m_particleState;
 			Real m_V;
 
-			SurfaceTensionMethods m_surfaceTensionMethod;
+#ifdef USE_PERFORMANCE_OPTIMIZATION
+			std::vector<Vector3f8, Eigen::aligned_allocator<Vector3f8>> m_precomp_V_gradW;
+			std::vector<unsigned int> m_precompIndices;
+			std::vector<unsigned int> m_precompIndicesSamePhase;
+#endif
+
+			unsigned int m_surfaceTensionMethod;
 			SurfaceTensionBase *m_surfaceTension;
-			ViscosityMethods m_viscosityMethod;
+			unsigned int m_viscosityMethod;
 			ViscosityBase *m_viscosity;
-			VorticityMethods m_vorticityMethod;
+			unsigned int m_vorticityMethod;
 			VorticityBase *m_vorticity;
-			DragMethods m_dragMethod;
+			unsigned int m_dragMethod;
 			DragBase *m_drag;
-			ElasticityMethods m_elasticityMethod;
+			unsigned int m_elasticityMethod;
 			ElasticityBase *m_elasticity;
 			std::vector<FieldDescription> m_fields;
 
@@ -175,16 +188,21 @@ namespace SPH
 
 			void emittedParticles(const unsigned int startIndex);
 
-			int getSurfaceTensionMethod() const { return static_cast<int>(m_surfaceTensionMethod); }
-			void setSurfaceTensionMethod(const int val);
-			int getViscosityMethod() const { return static_cast<int>(m_viscosityMethod); }
-			void setViscosityMethod(const int val);
-			int getVorticityMethod() const { return static_cast<int>(m_vorticityMethod); }
-			void setVorticityMethod(const int val);
-			int getDragMethod() const { return static_cast<int>(m_dragMethod); }
-			void setDragMethod(const int val);
-			int getElasticityMethod() const { return static_cast<int>(m_elasticityMethod); }
-			void setElasticityMethod(const int val);
+			unsigned int getSurfaceTensionMethod() const { return m_surfaceTensionMethod; }
+			void setSurfaceTensionMethod(const std::string& val);
+			void setSurfaceTensionMethod(const unsigned int val);
+			unsigned int getViscosityMethod() const { return m_viscosityMethod; }
+			void setViscosityMethod(const std::string &val);
+			void setViscosityMethod(const unsigned int val);
+			unsigned int getVorticityMethod() const { return m_vorticityMethod; }
+			void setVorticityMethod(const std::string& val);
+			void setVorticityMethod(const unsigned int val);
+			unsigned int getDragMethod() const { return m_dragMethod; }
+			void setDragMethod(const std::string& val);
+			void setDragMethod(const unsigned int val);
+			unsigned int getElasticityMethod() const { return m_elasticityMethod; }
+			void setElasticityMethod(const std::string& val);
+			void setElasticityMethod(const unsigned int val);
 
 			SurfaceTensionBase *getSurfaceTensionBase() { return m_surfaceTension; }
 			ViscosityBase *getViscosityBase() { return m_viscosity; }
@@ -207,6 +225,11 @@ namespace SPH
 			void saveState(BinaryFileWriter &binWriter);
 			void loadState(BinaryFileReader &binReader);
 
+#ifdef USE_PERFORMANCE_OPTIMIZATION
+			inline std::vector<Vector3f8, Eigen::aligned_allocator<Vector3f8>> & get_precomputed_V_gradW() { return m_precomp_V_gradW; }
+			inline std::vector<unsigned int>& get_precomputed_indices() { return m_precompIndices; }
+			inline std::vector<unsigned int>& get_precomputed_indices_same_phase() { return m_precompIndicesSamePhase; }
+#endif
 
 			FORCE_INLINE Vector3r &getPosition0(const unsigned int i)
 			{

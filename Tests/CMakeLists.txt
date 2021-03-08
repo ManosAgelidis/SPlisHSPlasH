@@ -1,5 +1,2 @@
-if (NOT SPH_LIBS_ONLY)
-	subdirs(Kernel)
-endif()
-
-
+add_subdirectory(Kernel)
+add_subdirectory(ReadWriteState)

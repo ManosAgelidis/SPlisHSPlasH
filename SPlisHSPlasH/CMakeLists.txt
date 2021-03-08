@@ -133,6 +133,8 @@ set(ELASTICITY_SOURCE_FILES
 	)	
 	
 set(UTILS_HEADER_FILES
+	Utilities/AVX_math.h
+	Utilities/DebugTools.h
 	Utilities/MathFunctions.h
 	Utilities/GaussQuadrature.h
 	Utilities/MatrixFreeSolver.h
@@ -148,6 +150,7 @@ set(UTILS_HEADER_FILES
 	)
 	
 set(UTILS_SOURCE_FILES
+	Utilities/DebugTools.cpp
 	Utilities/MathFunctions.cpp
 	Utilities/GaussQuadrature.cpp
 	Utilities/PoissonDiskSampling.cpp
@@ -160,25 +163,18 @@ set(UTILS_SOURCE_FILES
 	Utilities/WindingNumbers.cpp
 	)	
 	
-find_package( Eigen3 REQUIRED )
-include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR} )
-
-############################################################
-# CompactNSearch
-############################################################
-include_directories(${PROJECT_PATH}/extern/install/NeighborhoodSearch/include)
-
-############################################################
-# DiscreGrid
-############################################################
-include_directories(${PROJECT_PATH}/extern/install/Discregrid/include)
-
-############################################################
-# GenericParameters
-############################################################
-include_directories(${PROJECT_PATH}/extern/install/GenericParameters/include)
-
-add_library(SPlisHSPlasH 
+if (USE_THIRD_PARTY_METHODS)
+	list(APPEND SURFACETENSION_HEADER_FILES 
+		SurfaceTension/SurfaceTension_ZorillaRitter2020_haltonVec323.h
+		SurfaceTension/SurfaceTension_ZorillaRitter2020.h
+	)
+	
+	list(APPEND SURFACETENSION_SOURCE_FILES
+		SurfaceTension/SurfaceTension_ZorillaRitter2020.cpp
+	)
+endif()
+	
+add_library(SPlisHSPlasH
 	Common.h
 	
 	NeighborhoodSearch.h
@@ -202,6 +198,7 @@ add_library(SPlisHSPlasH
 	FluidModel.cpp
 	FluidModel.h
 	RigidBodyObject.h
+	NonPressureForceRegistration.cpp
 	SPHKernels.cpp
 	SPHKernels.h
 	StaticRigidBody.h
@@ -253,9 +250,29 @@ add_library(SPlisHSPlasH
 	${UTILS_SOURCE_FILES}
 )
 
-add_dependencies(SPlisHSPlasH Ext_NeighborhoodSearch)
-add_dependencies(SPlisHSPlasH Ext_GenericParameters)
-add_dependencies(SPlisHSPlasH Ext_Discregrid)
+add_dependencies(SPlisHSPlasH
+	Utilities
+	tinyexpr
+	Ext_NeighborhoodSearch
+	Ext_GenericParameters
+	Ext_Discregrid
+)
+
+target_include_directories(SPlisHSPlasH PUBLIC
+	${EIGEN3_INCLUDE_DIR}
+	${NEIGHBORHOOD_SEARCH_INCLUDE_DIR}
+	${GENERICPARAMETERS_INCLUDE_DIR}
+	${DISCREGRID_INCLUDE_DIR}
+)
+
+set_property(TARGET SPlisHSPlasH PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+target_link_libraries(SPlisHSPlasH
+	PUBLIC Utilities tinyexpr
+	INTERFACE
+	${NEIGHBORHOOD_SEARCH_LIBRARIES}
+	${DISCREGRID_LIBRARIES}
+)
 
 source_group("Header Files\\WCSPH" FILES ${WCSPH_HEADER_FILES})
 source_group("Source Files\\WCSPH" FILES ${WCSPH_SOURCE_FILES})
