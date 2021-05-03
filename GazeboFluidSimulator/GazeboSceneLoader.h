@@ -81,6 +81,7 @@ namespace Utilities
 			std::vector<GazeboSceneLoader::EmitterData *> emitters;
 			Real particleRadius;
 			Real timeStepSize;
+			std::string outputPath;
 		};
 
 		template <typename T>
@@ -88,7 +89,7 @@ namespace Utilities
 		void readScene(sdf::ElementPtr fluidSceneSDF, Scene &scene);
 		void readParameterObject(const std::string &key, GenParam::ParameterObject *paramObj);
 		bool getVector3rParameter(const sdf::ElementPtr sdf, Vector3r &parameter, const ::std::string &parameterName, const Vector3r &defaultValue);
-		void processBoundary(Scene &scene, const gazebo::physics::CollisionPtr &collision,const std::string& objFilePath);
+		void processBoundary(Scene &scene, const gazebo::physics::CollisionPtr &collision, const std::string &objFilePath);
 		//void getVector3iParameter(const sdf::ElementPtr sdf, Eigen::Matrix<unsigned int, 3, 1> &parameter, const ::std::string &parameterName, const Eigen::Matrix<unsigned int, 3, 1> &defaultValue)
 		//void getSDFParameter(Scene &scene, sdf::ElementPtr sdf, const std::string &parameterName);
 

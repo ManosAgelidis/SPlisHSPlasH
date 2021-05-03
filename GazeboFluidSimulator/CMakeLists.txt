@@ -50,7 +50,6 @@ add_library(FluidSimulator SHARED
 	${EXPORTER_SOURCE_FILES}
 	${EXPORTER_HEADER_FILES}
 )
-
 set_property(TARGET FluidSimulator PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_target_properties(FluidSimulator PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 set_target_properties(FluidSimulator PROPERTIES RELWITHDEBINFO_POSTFIX ${CMAKE_RELWITHDEBINFO_POSTFIX})
@@ -64,14 +63,26 @@ target_include_directories(FluidSimulator PUBLIC
 	${NEIGHBORHOOD_SEARCH_INCLUDE_DIR}
 )
 target_compile_definitions(FluidSimulator PRIVATE -DTW_NO_LIB_PRAGMA -DTW_STATIC)
-target_link_libraries(FluidSimulator ${SIMULATION_LINK_LIBRARIES} ${GAZEBO_LIBRARIES} ${IGNITION-MATH_LIBRARIES})
+set_property(TARGET FluidSimulator PROPERTY POSITION_INDEPENDENT_CODE ON)
 
+set_target_properties(FluidSimulator PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
+set_target_properties(FluidSimulator PROPERTIES RELWITHDEBINFO_POSTFIX ${CMAKE_RELWITHDEBINFO_POSTFIX})
+set_target_properties(FluidSimulator PROPERTIES MINSIZEREL_POSTFIX ${CMAKE_MINSIZEREL_POSTFIX})
+add_dependencies(FluidSimulator ${SIMULATION_DEPENDENCIES})
+target_link_libraries(FluidSimulator ${SIMULATION_LINK_LIBRARIES} ${GAZEBO_LIBRARIES} ${IGNITION-MATH_LIBRARIES})
 
 add_library(FluidVisPlugin SHARED visualization/FluidVisPlugin.cc)
 target_link_libraries(FluidVisPlugin gazebo_msgs ${OGRE_LIBRARIES} gazebo_gui)
+
 set(GAZEBO_PLUGIN_INSTALL_DIR
   ${CMAKE_INSTALL_PREFIX}/lib/gazebo-${GAZEBO_MAJOR_VERSION}/plugins
 )
-install(FILES ${PROJECT_PATH}build/lib/libFluidSimulator.so DESTINATION ${GAZEBO_PLUGIN_INSTALL_DIR})
-install(FILES ${PROJECT_PATH}debug/lib/libFluidSimulator_d.so DESTINATION ${GAZEBO_PLUGIN_INSTALL_DIR})
-install(FILES ${PROJECT_PATH}build/lib/libFluidVisPlugin.so DESTINATION ${GAZEBO_PLUGIN_INSTALL_DIR})
+
+string(TOLOWER "${CMAKE_BUILD_TYPE}" cmake_build_type_tolower)
+if( cmake_build_type_tolower STREQUAL "debug")
+	install(FILES ${CMAKE_BINARY_DIR}/lib/libFluidSimulator${CMAKE_DEBUG_POSTFIX}.so DESTINATION ${GAZEBO_PLUGIN_INSTALL_DIR})
+	install(FILES ${CMAKE_BINARY_DIR}/lib/libFluidVisPlugin${CMAKE_DEBUG_POSTFIX}.so DESTINATION ${GAZEBO_PLUGIN_INSTALL_DIR})
+else()
+	install(FILES ${CMAKE_BINARY_DIR}/lib/libFluidSimulator.so DESTINATION ${GAZEBO_PLUGIN_INSTALL_DIR})
+	install(FILES ${CMAKE_BINARY_DIR}/lib/libFluidVisPlugin.so DESTINATION ${GAZEBO_PLUGIN_INSTALL_DIR})
+endif()

@@ -83,7 +83,7 @@ void GazeboSceneLoader::processFluidModels(Scene &scene, const sdf::ElementPtr &
 
 				getVector3rParameter(fluidModelsElement, data->initialVelocity, "initialVelocity", Vector3r::Zero());
 				getSDFParameter<bool>(fluidModelsElement, data->invert, "invert", false);
-
+	
 				/* Eigen::Matrix<unsigned int, 3, 1> resolutionSDF;
 				getVector3iParameter(fluidModelsElement,resolutionSDF ,"resolutionSDF", Eigen::Matrix<unsigned int, 3, 1>(20,20,20) );
 				data->resolutionSDF[0] = resolutionSDF[0];
@@ -125,7 +125,7 @@ void GazeboSceneLoader::processFluidBlocks(Scene &scene, const sdf::ElementPtr &
 			//getSDFParameter<std::string>(fluidBlockElement, block->id, "id", "Fluid");
 			//getSDFParameter<unsigned char>(fluidBlockElement, block->mode, "denseMode", 0);
 			getVector3rParameter(fluidBlockElement, block->initialVelocity, "initialVelocity", Vector3r::Zero());
-
+			
 			scene.fluidBlocks.push_back(block);
 			fluidBlockElement = fluidBlockElement->GetNextElement("fluidBlock");
 		}
@@ -177,10 +177,10 @@ void GazeboSceneLoader::processBoundary(Scene &scene, const physics::CollisionPt
 		data->dynamic = !collision->GetModel()->GetSDF()->Get<bool>("static");
 	}
 	data->collisionName = collision->GetModel()->GetSDF()->GetAttribute("name")->GetAsString() + "_" + collision->GetName() + ".obj";
-	ignition::math::Pose3d collisionPose = collision->GetLink()->WorldPose();
-	/* if (collisionElement->HasElement("pose"))
-		collisionPose = collisionElement->GetElement("pose")->Get<gazebo::math::Pose>();
-	 */
+	ignition::math::Pose3d linkPose = collision->GetLink()->WorldPose();
+	ignition::math::Pose3d collisionPose = collision->WorldPose();
+	
+	
 	// TODO scale the mesh if necessary
 	data->scale = Vector3r::Ones();
 
@@ -197,64 +197,7 @@ void GazeboSceneLoader::processBoundary(Scene &scene, const physics::CollisionPt
 		orientation(2, 0), orientation(2, 1), orientation(2, 2);
 	data->rotation = fluidObjectOrientation;
 	data->rigidBody = collision;
-	const bool tail = data->collisionName.find("tail") != std::string::npos;
-	const bool eyes = data->collisionName.find("eyes") != std::string::npos;
-	const bool body_module = data->collisionName.find("body") != std::string::npos;
-	const bool body_connector = data->collisionName.find("body_connector") != std::string::npos;
-
-	//if (!body_module && !body_connector && !tail && !eyes)
 	scene.boundaryModels.push_back(data);
-
-	/* if (worldSDF->HasElement("model"))
-	{
-		sdf::ElementPtr modelElement = worldSDF->GetElement("model");
-		while (modelElement)
-		{
-			if (modelElement->HasElement("link"))
-			{
-				sdf::ElementPtr linkElement = modelElement->GetElement("link");
-				while (linkElement)
-				{
-					if (linkElement->HasElement("collision"))
-					{
-						sdf::ElementPtr collisionElement = linkElement->GetElement("collision");
-						while (collisionElement)
-						{
-							GazeboBoundaryData *data = new GazeboBoundaryData();
-							if (modelElement->HasElement("static"))
-							{
-								data->dynamic = !modelElement->Get<bool>("static");
-							}
-							data->collisionName = modelElement->GetAttribute("name")->GetAsString() + "_" + collisionElement->GetAttribute("name")->GetAsString();
-							gazebo::math::Pose collisionPose = gazebo::math::Pose::Zero;
-							if (collisionElement->HasElement("pose"))
-								collisionPose = collisionElement->GetElement("pose")->Get<gazebo::math::Pose>();
-							// TODO scale the mesh if necessary
-							data->scale = Vector3r::Ones();
-
-							// translation
-							gazebo::math::Vector3 translation = collisionPose.pos;
-							Vector3r fluidObjectTranslation = Vector3r(translation.x, translation.y, translation.z);
-							data->translation = fluidObjectTranslation;
-
-							// set the orientation of the geom as float4
-							gazebo::math::Matrix3 orientation = collisionPose.rot.GetAsMatrix3();
-							Matrix3r fluidObjectOrientation;
-							fluidObjectOrientation << orientation[0][0], orientation[0][1], orientation[0][2],
-								orientation[1][0], orientation[1][1], orientation[1][2],
-								orientation[2][0], orientation[2][1], orientation[2][2];
-							data->rotation = fluidObjectOrientation;
-
-							scene.boundaryModels.push_back(data);
-							collisionElement = collisionElement->GetNextElement("collision");
-						}
-					}
-					linkElement = linkElement->GetNextElement("link");
-				}
-			}
-			modelElement = modelElement->GetNextElement("model");
-		}
-	} */
 }
 
 void GazeboSceneLoader::readScene(sdf::ElementPtr fluidSceneSDF, Scene &scene)
@@ -270,6 +213,8 @@ void GazeboSceneLoader::readScene(sdf::ElementPtr fluidSceneSDF, Scene &scene)
 		sdf::ElementPtr fluidConfiguration = fluidSceneSDF->GetElement("fluidConfiguration");
 		getSDFParameter<Real>(fluidConfiguration, scene.timeStepSize, "timeStepSize", 0.001);
 		getSDFParameter<Real>(fluidConfiguration, scene.particleRadius, "particleRadius", 0.025);
+		getSDFParameter<std::string>(fluidConfiguration, scene.outputPath, "outputPath", "/tmp");
+			
 	}
 	else
 	{
@@ -279,7 +224,6 @@ void GazeboSceneLoader::readScene(sdf::ElementPtr fluidSceneSDF, Scene &scene)
 	processFluidModels(scene, fluidSceneSDF);
 	processFluidBlocks(scene, fluidSceneSDF);
 	processFluidEmmiters(scene, fluidSceneSDF);
-	//processBoundaries(scene, fluidSceneSDF->GetParent());
 }
 
 void GazeboSceneLoader::readParameterObject(const std::string &key, ParameterObject *paramObj)
@@ -295,8 +239,6 @@ void GazeboSceneLoader::readParameterObject(const std::string &key, ParameterObj
 	if (this->fluidSceneSDF->HasElement(key))
 	{
 		sdf::ElementPtr config = this->fluidSceneSDF->GetElement(key);
-		//std::vector<std::string> newParamList;
-
 		for (unsigned int i = 0; i < numParams; i++)
 		{
 			ParameterBase *paramBase = paramObj->getParameter(i);

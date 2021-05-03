@@ -63,7 +63,7 @@ namespace gazebo
     void Load(physics::WorldPtr parent, sdf::ElementPtr sdf);
     void initBoundaryData();
     void reset();
-    void loadObj(const std::string &filename, SPH::TriangleMesh &geo, const Vector3r &scale);
+    //void loadObj(const std::string &filename, SPH::TriangleMesh &geo, const Vector3r &scale);
     void ParseSDF();
     void RegisterMesh(physics::CollisionPtr collision, std::string extension, std::string path);
 
@@ -78,12 +78,10 @@ namespace gazebo
     transport::NodePtr node;
     physics::WorldPtr world;
     sdf::ElementPtr fluidPluginSdf;
-    std::map<std::string, physics::CollisionPtr> filenamesToCollisions;
     /// \brief Publisher for fluid object visual messages.
     transport::PublisherPtr fluidObjPub;
     transport::PublisherPtr rigidObjPub;
     unsigned int simulationSteps;
-    std::map<SPH::GazeboRigidBody *, physics::CollisionPtr> boundariesToCollisions;
     void publishFluidParticles();
     void publishBoundaryParticles();
   };

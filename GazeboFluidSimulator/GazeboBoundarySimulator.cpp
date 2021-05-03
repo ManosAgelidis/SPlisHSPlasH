@@ -33,17 +33,18 @@ void GazeboBoundarySimulator::updateBoundaryForces()
 	for (unsigned int i = 0; i < nObjects; i++)
 	{
 		BoundaryModel *bm = sim->getBoundaryModel(i);
-		RigidBodyObject *rbo = bm->getRigidBodyObject();
+		GazeboRigidBody *rbo = dynamic_cast<GazeboRigidBody *>(bm->getRigidBodyObject());
 		if (rbo->isDynamic())
 		{
-			gazebo::physics::CollisionPtr gazeboRigidBody = GazeboSceneConfiguration::getCurrent()->getScene().boundaryModels[i]->rigidBody;
+			gazebo::physics::CollisionPtr gazeboCollision = rbo->getGazeboCollision();
 			Vector3r force, torque;
 			// change rigid body fluid position?
 			bm->getForceAndTorque(force, torque);
 			const ignition::math::Vector3d gazeboForce = ignition::math::Vector3d(force[0], force[1], force[2]);
 			const ignition::math::Vector3d gazeboTorque = ignition::math::Vector3d(torque[0], torque[1], torque[2]);
-			gazeboRigidBody->GetLink()->AddForce(gazeboForce);
-			gazeboRigidBody->GetLink()->AddTorque(gazeboTorque);
+			gazeboCollision->GetLink()->AddForce(gazeboForce);
+		
+     		gazeboCollision->GetLink()->AddTorque(gazeboTorque);
 			bm->clearForceAndTorque();
 		}
 	}
@@ -56,7 +57,6 @@ void GazeboBoundarySimulator::timeStep()
 	Simulation *sim = Simulation::getCurrent();
 	if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Akinci2012)
 		m_base->updateBoundaryParticles(false);
-	//std::cout << "updating boundary particles" << std::endl;
 	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Koschier2017)
 		m_base->updateDMVelocity();
 	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Bender2019)
@@ -95,7 +95,7 @@ void GazeboBoundarySimulator::loadObj(const std::string &filename, TriangleMesh 
 	LOG_INFO << "Number of vertices: " << nPoints;
 }
 
-void GazeboBoundarySimulator::initBoundaryData(std::map<SPH::GazeboRigidBody *, physics::CollisionPtr> &boundariesToCollisions)
+void GazeboBoundarySimulator::initBoundaryData()
 {
 	const std::string &sceneFile = GazeboSceneConfiguration::getCurrent()->getSceneFile();
 	const Utilities::GazeboSceneLoader::Scene &scene = GazeboSceneConfiguration::getCurrent()->getScene();
@@ -103,6 +103,7 @@ void GazeboBoundarySimulator::initBoundaryData(std::map<SPH::GazeboRigidBody *, 
 	for (unsigned int i = 0; i < scene.boundaryModels.size(); i++)
 	{
 		GazeboRigidBody *rigidBody = new GazeboRigidBody();
+		rigidBody->setGazeboCollision(scene.boundaryModels[i]->rigidBody);
 		if (scene.boundaryModels[i]->rigidBody->GetModel()->GetSDF()->HasElement("static"))
 		{
 			rigidBody->setDynamic(scene.boundaryModels[i]->dynamic);
@@ -179,7 +180,6 @@ void GazeboBoundarySimulator::initBoundaryData(std::map<SPH::GazeboRigidBody *, 
 
 		geo.updateNormals();
 		geo.updateVertexNormals();
-		boundariesToCollisions.insert(std::pair<GazeboRigidBody *, physics::CollisionPtr>(rigidBody, scene.boundaryModels[i]->rigidBody));
 	}
 	sim->performNeighborhoodSearchSort();
 	if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Akinci2012)

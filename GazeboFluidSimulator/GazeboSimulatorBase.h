@@ -9,7 +9,6 @@
 #include "SPlisHSPlasH/BoundaryModel_Koschier2017.h"
 #include "SPlisHSPlasH/BoundaryModel_Bender2019.h"
 #include "SPlisHSPlasH/TriangleMesh.h"
-//#include "Simulator/BoundarySimulator.h"
 #include "GazeboSceneConfiguration.h"
 #include "GazeboRigidBody.h"
 #include "GazeboSceneLoader.h"
@@ -47,7 +46,7 @@ namespace SPH
 		int m_simulation_steps;
 		std::string m_exePath;
 		std::string m_stateFile;
-		std::string m_outputPath = "/home/manos/PhD/sph_amphibot/results";
+		std::string m_outputPath;
 		bool m_useParticleCaching;
 		bool m_isStaticScene;
 		bool m_enableRigidBodyVTKExport;
@@ -94,12 +93,10 @@ namespace SPH
 		GazeboSimulatorBase &operator=(const GazeboSimulatorBase &) = delete;
 		virtual ~GazeboSimulatorBase();
 
-		void initialize();
 		void run();
 		void buildModel();
 		void init(sdf::ElementPtr &worldPluginSDF);
 		void initSimulation();
-		void runSimulation();
 		void cleanup();
 		void processBoundary(physics::CollisionPtr collision, std::string objFilePath);
 		void reset();
@@ -118,8 +115,6 @@ namespace SPH
 		void step();
 
 		void saveState(const std::string &stateFile = "");
-		//void loadStateDialog();
-		//void loadState(const std::string &stateFile);
 		void writeFluidParticlesState(const std::string &fileName, FluidModel *model);
 		void readFluidParticlesState(const std::string &fileName, FluidModel *model);
 		void writeBoundaryState(const std::string &fileName, BoundaryModel *model);
@@ -161,14 +156,14 @@ namespace SPH
 		void initRbVertixPositions();
 
 		void activateExporter(const std::string &exporterName, const bool active);
-		void initBoundaryData(std::map<SPH::GazeboRigidBody *, physics::CollisionPtr> &boundariesToCollisions);
-	
+		void initBoundaryData();
+
 		// VTK expects big endian
-		template<typename T>
-		inline void swapByteOrder(T* v)
+		template <typename T>
+		inline void swapByteOrder(T *v)
 		{
 			constexpr size_t n = sizeof(T);
-			uint8_t* bytes = reinterpret_cast<uint8_t*>(v);
+			uint8_t *bytes = reinterpret_cast<uint8_t *>(v);
 			for (unsigned int c = 0u; c < n / 2; c++)
 				std::swap(bytes[c], bytes[n - c - 1]);
 		}

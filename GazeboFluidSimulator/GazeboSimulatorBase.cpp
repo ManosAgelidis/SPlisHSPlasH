@@ -80,7 +80,6 @@ GazeboSimulatorBase::~GazeboSimulatorBase()
 	cleanupExporters();
 }
 
-
 void GazeboSimulatorBase::initParameters()
 {
 	ParameterObject::initParameters();
@@ -123,11 +122,6 @@ void GazeboSimulatorBase::initParameters()
 	}
 }
 
-void GazeboSimulatorBase::initialize()
-{
-	
-}
-
 void GazeboSimulatorBase::processBoundary(physics::CollisionPtr collision, std::string objFilePath)
 {
 	this->m_sceneLoader->processBoundary(GazeboSceneConfiguration::getCurrent()->getScene(), collision, objFilePath);
@@ -146,10 +140,6 @@ void GazeboSimulatorBase::init(sdf::ElementPtr &worldPluginSDF)
 	LOG_DEBUG << "Git status:           " << GIT_LOCAL_STATUS;
 	LOG_DEBUG << "Host name:            " << SystemInfo::getHostName();
 
-	if (!getUseParticleCaching())
-		LOG_INFO << "Boundary cache disabled.";
-	LOG_INFO << "Output directory: " << m_outputPath;
-
 	//////////////////////////////////////////////////////////////////////////
 	// read scene
 	//////////////////////////////////////////////////////////////////////////
@@ -157,6 +147,11 @@ void GazeboSimulatorBase::init(sdf::ElementPtr &worldPluginSDF)
 	const std::string &sceneFile = GazeboSceneConfiguration::getCurrent()->getSceneFile();
 	GazeboSceneLoader::Scene &scene = GazeboSceneConfiguration::getCurrent()->getScene();
 	m_sceneLoader->readScene(worldPluginSDF, scene);
+
+	if (!getUseParticleCaching())
+		LOG_INFO << "Boundary cache disabled.";
+	m_outputPath = scene.outputPath;
+	LOG_INFO << "Output directory: " << m_outputPath;
 	//////////////////////////////////////////////////////////////////////////
 	// init boundary simulation
 	//////////////////////////////////////////////////////////////////////////
@@ -197,14 +192,9 @@ void GazeboSimulatorBase::initSimulation()
 	readParameters();
 }
 
-void GazeboSimulatorBase::runSimulation()
+void GazeboSimulatorBase::initBoundaryData()
 {
-	
-}
-
-void GazeboSimulatorBase::initBoundaryData(std::map<SPH::GazeboRigidBody *, physics::CollisionPtr> &boundariesToCollisions)
-{
-	m_boundarySimulator->initBoundaryData(boundariesToCollisions);
+	m_boundarySimulator->initBoundaryData();
 }
 
 void GazeboSimulatorBase::cleanup()
@@ -226,6 +216,7 @@ void GazeboSimulatorBase::readParameters()
 		FluidModel *model = sim->getFluidModel(i);
 		const std::string &key = model->getId();
 		m_sceneLoader->readParameterObject(key, model);
+		//std::cout << "Viscosity value " <<  model->getViscosityBase()->m_viscosity  << std::endl;
 		m_sceneLoader->readParameterObject(key, (ParameterObject *)model->getDragBase());
 		m_sceneLoader->readParameterObject(key, (ParameterObject *)model->getSurfaceTensionBase());
 		m_sceneLoader->readParameterObject(key, (ParameterObject *)model->getViscosityBase());
@@ -429,7 +420,7 @@ void GazeboSimulatorBase::initFluidData()
 
 	createFluidBlocks(fluidIDs, fluidParticles, fluidVelocities);
 
-	std::string base_path = "/home/manos/PhD/sph_amphibot/vtk";
+	std::string base_path = scene.outputPath;
 
 	const bool useCache = getUseParticleCaching();
 	std::string scene_path = FileSystem::getFilePath(base_path);
@@ -526,24 +517,6 @@ void GazeboSimulatorBase::initFluidData()
 		}
 		Simulation::getCurrent()->setValue(Simulation::PARTICLE_RADIUS, scene.particleRadius);
 	}
-	/* for (unsigned int i = 0; i < scene.fluidModels.size(); i++)
-	{
-		const unsigned int fluidIndex = fluidIDs[scene.fluidModels[i]->id];
-		if (false)
-		{
-			fluidVelocities[fluidIndex].resize(fluidParticles[fluidIndex].size(), scene.fluidModels[i]->initialVelocity);
-
-			// transform particles
-			for (unsigned int j = 0; j < (unsigned int)fluidParticles[fluidIndex].size(); j++)
-				fluidParticles[fluidIndex][j] = scene.fluidModels[i]->rotation * fluidParticles[fluidIndex][j] + scene.fluidModels[i]->translation;
-		}
-		else
-		{
-			std::cout << "reading particles from file " << std::endl;
-			PartioReaderWriter::readParticles("/home/manos/PhD/sph_amphibot/partio/ParticleData__44.bgeo", scene.fluidModels[i]->translation, scene.fluidModels[i]->rotation, scene.fluidModels[i]->scale[0], fluidParticles[fluidIndex], fluidVelocities[fluidIndex]);
-		}
-		Simulation::getCurrent()->setValue(Simulation::PARTICLE_RADIUS, scene.particleRadius);
-	} */
 
 	unsigned int nParticles = 0;
 	for (auto it = fluidIDs.begin(); it != fluidIDs.end(); it++)
@@ -697,11 +670,11 @@ void GazeboSimulatorBase::particleInfo(std::vector<std::vector<unsigned int>> &p
 void GazeboSimulatorBase::step()
 {
 	setInitialRboVertices(getInitialRboVertices());
-	//std::cout << "Step function " << std::endl;
 	if (TimeManager::getCurrent()->getTime() >= m_nextFrameTime)
 	{
+		/* std::cout << "Current time : " << TimeManager::getCurrent()->getTime();
+		std::cout << " current Frame " <<  m_frameCounter << std::endl; */
 		m_nextFrameTime += static_cast<Real>(1.0) / m_framesPerSecond;
-		//std::cout << "Writing particles " << std::endl;
 		for (size_t i = 0; i < m_particleExporters.size(); i++)
 		{
 			m_particleExporters[i].m_exporter->step(m_frameCounter);
@@ -729,17 +702,15 @@ void GazeboSimulatorBase::updateBoundaryParticles(const bool forceUpdate = false
 	for (unsigned int i = 0; i < nObjects; i++)
 	{
 		BoundaryModel_Akinci2012 *bm = static_cast<BoundaryModel_Akinci2012 *>(sim->getBoundaryModel(i));
-		RigidBodyObject *rbo = bm->getRigidBodyObject();
+		GazeboRigidBody *rbo = dynamic_cast<GazeboRigidBody *>(bm->getRigidBodyObject());
 		if (rbo->isDynamic() || forceUpdate)
 		{
-			//#pragma omp parallel default(shared)
+#pragma omp parallel default(shared)
 			{
-				//#pragma omp for schedule(static)
-				physics::CollisionPtr currentRigidBody = scene.boundaryModels[i]->rigidBody;
-				physics::LinkPtr gazeboBodyLink = currentRigidBody->GetLink();
+				physics::CollisionPtr gazeboCollision = rbo->getGazeboCollision();
 
 				// Position of rigid body
-				ignition::math::Pose3d gazeboRigidBodyPose = currentRigidBody->WorldPose();
+				ignition::math::Pose3d gazeboRigidBodyPose = gazeboCollision->WorldPose();
 				Vector3r fluidObjectPosition = Vector3r(gazeboRigidBodyPose.Pos().X(), gazeboRigidBodyPose.Pos().Y(), gazeboRigidBodyPose.Pos().Z());
 
 				// Rotation of rigid body
@@ -749,13 +720,12 @@ void GazeboSimulatorBase::updateBoundaryParticles(const bool forceUpdate = false
 					rigidBodyRotation(1, 0), rigidBodyRotation(1, 1), rigidBodyRotation(1, 2),
 					rigidBodyRotation(2, 0), rigidBodyRotation(2, 1), rigidBodyRotation(2, 2);
 				// Linear velocity of rigid body
-				ignition::math::Vector3d linearVelocityGazebo = gazeboBodyLink->WorldLinearVel();
+				ignition::math::Vector3d linearVelocityGazebo = gazeboCollision->WorldLinearVel();
 				Vector3r fluidObjectLinearVel = Vector3r(linearVelocityGazebo.X(), linearVelocityGazebo.Y(), linearVelocityGazebo.Z());
 
 				// Angular velocity of rigid body
-				ignition::math::Vector3d angularVelocityGazebo = gazeboBodyLink->WorldAngularVel();
+				ignition::math::Vector3d angularVelocityGazebo = gazeboCollision->WorldAngularVel();
 				Vector3r fluidObjectAngularVel = Vector3r(angularVelocityGazebo.X(), angularVelocityGazebo.Y(), angularVelocityGazebo.Z());
-				//Vector3r fluidObjectAngularVel(0.0, 0.0, 0.0);
 				for (int j = 0; j < (int)bm->numberOfParticles(); j++)
 				{
 					bm->getPosition(j) = fluidObjectRotation * bm->getPosition0(j) + fluidObjectPosition;
@@ -764,7 +734,8 @@ void GazeboSimulatorBase::updateBoundaryParticles(const bool forceUpdate = false
 					else
 						bm->getVelocity(j).setZero();
 				}
-				rbo->setPosition(fluidObjectPosition);
+				auto CoMPose = gazeboCollision->GetLink()->WorldInertialPose().Pos();
+				rbo->setPosition(Vector3r(CoMPose.X(), CoMPose.Y(), CoMPose.Z()));
 				rbo->setRotation(fluidObjectRotation);
 			}
 #ifdef GPU_NEIGHBORHOOD_SEARCH
@@ -1365,8 +1336,9 @@ void GazeboSimulatorBase::initRbVertixPositions()
 			rotation(0, 1), rotation(1, 1), rotation(2, 1),
 			rotation(0, 2), rotation(1, 2), rotation(2, 2);
 
-		auto linkPos = scene.boundaryModels[i]->rigidBody->GetLink()->WorldPose().Pos();
-		Vector3r rboPos_WF = Vector3r(linkPos.X(), linkPos.Y(), linkPos.Z());
+		//auto linkPos = scene.boundaryModels[i]->rigidBody->GetLink()->WorldPose().Pos();
+		auto collisionPos = scene.boundaryModels[i]->rigidBody->WorldPose().Pos();
+		Vector3r rboPos_WF = Vector3r(collisionPos.X(), collisionPos.Y(), collisionPos.Z());
 
 		for (int vertex = 0; vertex < n_vertices; vertex++)
 		{
@@ -1381,7 +1353,6 @@ void GazeboSimulatorBase::writeRigidBodies(const unsigned int frame)
 	Simulation *sim = Simulation::getCurrent();
 	const Utilities::GazeboSceneLoader::Scene &scene = GazeboSceneConfiguration::getCurrent()->getScene();
 	const unsigned int nBoundaryModels = sim->numberOfBoundaryModels();
-	std::string m_outputPath = "/home/manos/PhD/sph_amphibot/results";
 	std::string exportPath = FileSystem::normalizePath(m_outputPath + "/vtk");
 	FileSystem::makeDirs(exportPath);
 
@@ -1608,14 +1579,18 @@ void GazeboSimulatorBase::writeRigidBodies(const unsigned int frame)
 			// Generate Rigid Body .vtk files
 			std::vector<Vector3r> vertices_new;
 			vertices_new.resize(n_vertices);
-			ignition::math::Matrix3d rotation = ignition::math::Matrix3d(
+			/* ignition::math::Matrix3d rotation = ignition::math::Matrix3d(
 				scene.boundaryModels[i]->rigidBody->GetLink()->WorldPose().Rot());
+			 */
+			ignition::math::Matrix3d rotation = ignition::math::Matrix3d(
+				scene.boundaryModels[i]->rigidBody->WorldPose().Rot());
 			Matrix3r R_WF_LF;
 			R_WF_LF << rotation(0, 0), rotation(0, 1), rotation(0, 2),
 				rotation(1, 0), rotation(1, 1), rotation(1, 2),
 				rotation(2, 0), rotation(2, 1), rotation(2, 2);
 
-			auto linkPos = scene.boundaryModels[i]->rigidBody->GetLink()->WorldPose().Pos();
+			//auto linkPos = scene.boundaryModels[i]->rigidBody->GetLink()->WorldPose().Pos();
+			auto linkPos = scene.boundaryModels[i]->rigidBody->WorldPose().Pos();
 
 			Vector3r rboPos_WF = Vector3r(linkPos.X(), linkPos.Y(), linkPos.Z());
 

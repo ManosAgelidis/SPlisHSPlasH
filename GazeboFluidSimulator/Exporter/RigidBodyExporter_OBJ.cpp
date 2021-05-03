@@ -86,8 +86,9 @@ void RigidBodyExporter_OBJ::writeRigidBodies(const unsigned int frame)
 			outfile << "g default\n";
 
 			BoundaryModel* bm = sim->getBoundaryModel(i);
-			const std::vector<Vector3r>& vertices = bm->getRigidBodyObject()->getVertices();
-			const std::vector<unsigned int>& faces = bm->getRigidBodyObject()->getFaces();
+			GazeboRigidBody *rbo = dynamic_cast<GazeboRigidBody *>(bm->getRigidBodyObject());
+			const std::vector<Vector3r>& vertices = rbo->getUpdatedVertices();
+			const std::vector<unsigned int>& faces = rbo->getFaces();
 			int n_vertices = (int)vertices.size();
 			int n_triangles = (int)faces.size() / 3;
 

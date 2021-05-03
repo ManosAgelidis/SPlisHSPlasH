@@ -17,7 +17,7 @@ namespace SPH
     class GazeboRigidBody : public RigidBodyObject
     {
     private:
-        gazebo::physics::ModelPtr gazeboModel;
+        gazebo::physics::CollisionPtr gazeboCollision;
 
     protected:
         Vector3r m_x;
@@ -26,6 +26,7 @@ namespace SPH
         Matrix3r m_R;
         Matrix3r m_R_world;
         TriangleMesh m_geometry;
+        std::vector<Vector3r> m_updatedVertices;
         bool m_isDynamic;
 
     public:
@@ -47,8 +48,16 @@ namespace SPH
         virtual void setAngularVelocity(const Vector3r &v) {}
         virtual void addForce(const Vector3r &f) {}
         virtual void addTorque(const Vector3r &t) {}
+        std::vector<Vector3r> &getUpdatedVertices()
+        {
+            updateVertices();
+            return m_updatedVertices;
+            //return m_geometry.getVertices();
+        }
 
-        void setGazeboCollision(const gazebo::physics::ModelPtr &model) { gazeboModel = model; }
+        void setGazeboCollision(const gazebo::physics::CollisionPtr &collision) { gazeboCollision = collision; }
+        gazebo::physics::CollisionPtr getGazeboCollision() const { return gazeboCollision; }
+
         void setWorldSpacePosition(const Vector3r &x)
         {
             /*  if (model->GetLinks().size())
@@ -58,7 +67,27 @@ namespace SPH
         void setWorldSpaceRotation(const Matrix3r &r) { m_R_world = r; }
         TriangleMesh &getGeometry() { return m_geometry; }
 
-        virtual const std::vector<Vector3r> &getVertices() const {  return m_geometry.getVertices(); };
+        void updateVertices()
+        {
+            TriangleMesh &geo = this->getGeometry();
+            int n_vertices = (int)geo.numVertices();
+            m_updatedVertices.resize(n_vertices);
+
+            ignition::math::Matrix3d rotation = ignition::math::Matrix3d(gazeboCollision->WorldPose().Rot());
+            Matrix3r R_LF_WF;
+            R_LF_WF << rotation(0, 0), rotation(1, 0), rotation(2, 0),
+                rotation(0, 1), rotation(1, 1), rotation(2, 1),
+                rotation(0, 2), rotation(1, 2), rotation(2, 2);
+
+            ignition::math::Vector3d collisionPos = gazeboCollision->WorldPose().Pos();
+            Vector3r rboPos_WF = Vector3r(collisionPos.X(), collisionPos.Y(), collisionPos.Z());
+
+            for (unsigned int vertex = 0; vertex < geo.numVertices(); vertex++)
+            {
+                m_updatedVertices[vertex] = R_LF_WF * ( geo.getVertices()[vertex] -rboPos_WF) + rboPos_WF;
+            }
+        };
+        virtual const std::vector<Vector3r> &getVertices() const { return m_geometry.getVertices(); };
         virtual const std::vector<Vector3r> &getVertexNormals() const { return m_geometry.getVertexNormals(); };
         virtual const std::vector<unsigned int> &getFaces() const { return m_geometry.getFaces(); };
     };

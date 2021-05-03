@@ -24,7 +24,7 @@ namespace SPH
 	public:
 		GazeboBoundarySimulator(GazeboSimulatorBase *base);
 		void updateBoundaryForces();
-		void initBoundaryData(std::map<SPH::GazeboRigidBody *, physics::CollisionPtr>& boundariesToCollisions);
+		void initBoundaryData();
 		virtual void timeStep();
 		virtual ~GazeboBoundarySimulator();
 		virtual void init() {}

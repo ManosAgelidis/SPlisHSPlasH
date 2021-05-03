@@ -45,8 +45,7 @@ void RigidBodyExporter_VTK::writeRigidBodies(const unsigned int frame)
 	Simulation *sim = Simulation::getCurrent();
 	const Utilities::GazeboSceneLoader::Scene &scene = GazeboSceneConfiguration::getCurrent()->getScene();
 	const unsigned int nBoundaryModels = sim->numberOfBoundaryModels();
-	std::string m_outputPath = "/home/manos/PhD/sph_amphibot/results";
-	std::string exportPath = FileSystem::normalizePath(m_outputPath + "/vtk");
+	std::string exportPath = FileSystem::normalizePath(scene.outputPath + "/vtk");
 	FileSystem::makeDirs(exportPath);
 
 	// check if we have a static model
@@ -263,9 +262,9 @@ void RigidBodyExporter_VTK::writeRigidBodies(const unsigned int frame)
 			outfile << "DATASET UNSTRUCTURED_GRID\n";
 
 			BoundaryModel *bm = sim->getBoundaryModel(i);
-
-			const std::vector<Vector3r> &vertices = bm->getRigidBodyObject()->getVertices();
-			const std::vector<unsigned int> &faces = bm->getRigidBodyObject()->getFaces();
+			GazeboRigidBody *rbo = dynamic_cast<GazeboRigidBody *>(bm->getRigidBodyObject());
+			const std::vector<Vector3r> &vertices =  rbo->getUpdatedVertices();
+			const std::vector<unsigned int> &faces = rbo->getFaces();
 			int n_vertices = (int)vertices.size();
 			int n_triangles = (int)faces.size() / 3;
 
@@ -279,9 +278,10 @@ void RigidBodyExporter_VTK::writeRigidBodies(const unsigned int frame)
 				rotation(1, 0), rotation(1, 1), rotation(1, 2),
 				rotation(2, 0), rotation(2, 1), rotation(2, 2);
 
-			auto linkPos = scene.boundaryModels[i]->rigidBody->GetLink()->WorldPose().Pos();
+			//auto linkPos = scene.boundaryModels[i]->rigidBody->GetLink()->WorldPose().Pos();
+			auto collisionPos = scene.boundaryModels[i]->rigidBody->GetLink()->WorldPose().Pos();
 
-			Vector3r rboPos_WF = Vector3r(linkPos.X(), linkPos.Y(), linkPos.Z());
+			Vector3r rboPos_WF = Vector3r(collisionPos.X(), collisionPos.Y(), collisionPos.Z());
 
 			/* for (int vertex = 0; vertex < n_vertices; vertex++)
 			{

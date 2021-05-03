@@ -1,20 +1,17 @@
 #include "SPlisHSPlasH/Common.h"
 #include "SPlisHSPlasH/TimeManager.h"
-//#include <Eigen/Dense>
-//#include <iostream>
 #include "Utilities/OBJLoader.h"
 #include "SPlisHSPlasH/Utilities/SurfaceSampling.h"
+#include "SPlisHSPlasH/Viscosity/ViscosityBase.h"
 #include <fstream>
 #include "SPlisHSPlasH/Simulation.h"
-//#include "SPlisHSPlasH/BoundaryModel_Koschier2017.h"
-//#include "SPlisHSPlasH/BoundaryModel_Bender2019.h"
-//#include "SPlisHSPlasH/BoundaryModel_Akinci2012.h"
 #include "FluidSimulator.h"
 #include "Utilities/Timing.h"
 #include "Utilities/Counting.h"
 #include "Utilities/FileSystem.h"
 #include "GazeboSceneLoader.h"
 #include <memory>
+
 // Enable memory leak detection
 #ifdef _DEBUG
 #ifndef EIGEN_ALIGN
@@ -22,17 +19,12 @@
 #endif
 #endif
 
-//INIT_LOGGING
-//INIT_TIMING
-//INIT_COUNTING
-
 using namespace SPH;
 using namespace Eigen;
 using namespace std;
 using namespace Utilities;
 using namespace GenParam;
 using namespace gazebo;
-
 const std::string objFilePath("/tmp/");
 
 FluidSimulator::FluidSimulator()
@@ -92,6 +84,7 @@ void FluidSimulator::publishFluidParticles()
 		for (unsigned int j = 0; j < Simulation::getCurrent()->numberOfFluidModels(); j++)
 		{
 			FluidModel *model = Simulation::getCurrent()->getFluidModel(j);
+			//std::cout << "Density " << model->getViscosityBase()->VISCOSITY_COEFFICIENT << std::endl;;
 			for (unsigned int i = 0; i < model->numActiveParticles(); ++i)
 			{
 				gazebo::msgs::Set(fluid_positions_msg.add_position(),
@@ -119,7 +112,7 @@ void FluidSimulator::Init()
 	this->ParseSDF();
 
 	base->initSimulation();
-	base->initBoundaryData(boundariesToCollisions);
+	base->initBoundaryData();
 
 	this->publishBoundaryParticles();
 }
@@ -141,8 +134,6 @@ void FluidSimulator::RegisterMesh(physics::CollisionPtr collision, std::string e
 	std::string objFilePath = path + collision->GetModel()->GetName() + "_" + collision->GetName() + ".obj";
 	common::MeshManager::Instance()->Export(mesh, FileSystem::normalizePath(objFilePath), extension);
 	base->processBoundary(collision, objFilePath);
-	// Map the mesh filename to the collision shape
-	filenamesToCollisions.insert(std::pair<std::string, physics::CollisionPtr>(objFilePath, collision));
 }
 
 void FluidSimulator::ParseSDF()
@@ -254,8 +245,6 @@ void FluidSimulator::ParseSDF()
 					// Export the mesh to a temp file in the selected format
 					common::MeshManager::Instance()->Export(mesh, FileSystem::normalizePath(fullMeshPath), "obj");
 					base->processBoundary(*collision_it, fullMeshPath);
-					// Map the mesh filename to the collision shape
-					filenamesToCollisions.insert(std::pair<std::string, physics::CollisionPtr>(fullMeshPath, (*collision_it)));
 				}
 				else
 				{
